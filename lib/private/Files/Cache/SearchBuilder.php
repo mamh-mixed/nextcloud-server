@@ -167,7 +167,7 @@ class SearchBuilder {
 			$field = 'file.name';
 		} elseif ($field === 'tagname') {
 			$field = 'tag.category';
-		} elseif ($field === 'systemntag') {
+		} elseif ($field === 'systemtag') {
 			$field = 'systemtag.name';
 		} elseif ($field === 'fileid') {
 			$field = 'file.fileid';
