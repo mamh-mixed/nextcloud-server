@@ -95,6 +95,18 @@ class Util {
 		return $color;
 	}
 
+	public function mix(string $color1, string $color2, float $factor): string {
+		return $color1;
+	}
+
+	public function lighten(string $color, float $factor): string {
+		return $color;
+	}
+
+	public function darken(string $color, float $factor): string {
+		return $color;
+	}
+
 	/**
 	 * Convert RGB to HSL
 	 *
