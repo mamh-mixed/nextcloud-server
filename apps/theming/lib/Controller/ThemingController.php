@@ -37,8 +37,8 @@
  */
 namespace OCA\Theming\Controller;
 
-use OC\Template\SCSSCacher;
 use OCA\Theming\ImageManager;
+use OCA\Theming\Service\ThemesService;
 use OCA\Theming\ThemingDefaults;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
@@ -63,40 +63,16 @@ use OCP\IURLGenerator;
  * @package OCA\Theming\Controller
  */
 class ThemingController extends Controller {
-	/** @var ThemingDefaults */
-	private $themingDefaults;
-	/** @var IL10N */
-	private $l10n;
-	/** @var IConfig */
-	private $config;
-	/** @var ITempManager */
-	private $tempManager;
-	/** @var IAppData */
-	private $appData;
-	/** @var SCSSCacher */
-	private $scssCacher;
-	/** @var IURLGenerator */
-	private $urlGenerator;
-	/** @var IAppManager */
-	private $appManager;
-	/** @var ImageManager */
-	private $imageManager;
+	private ThemingDefaults $themingDefaults;
+	private IL10N $l10n;
+	private IConfig $config;
+	private ITempManager $tempManager;
+	private IAppData $appData;
+	private IURLGenerator $urlGenerator;
+	private IAppManager $appManager;
+	private ImageManager $imageManager;
+	private ThemesService $themesService;
 
-	/**
-	 * ThemingController constructor.
-	 *
-	 * @param string $appName
-	 * @param IRequest $request
-	 * @param IConfig $config
-	 * @param ThemingDefaults $themingDefaults
-	 * @param IL10N $l
-	 * @param ITempManager $tempManager
-	 * @param IAppData $appData
-	 * @param SCSSCacher $scssCacher
-	 * @param IURLGenerator $urlGenerator
-	 * @param IAppManager $appManager
-	 * @param ImageManager $imageManager
-	 */
 	public function __construct(
 		$appName,
 		IRequest $request,
@@ -105,10 +81,10 @@ class ThemingController extends Controller {
 		IL10N $l,
 		ITempManager $tempManager,
 		IAppData $appData,
-		SCSSCacher $scssCacher,
 		IURLGenerator $urlGenerator,
 		IAppManager $appManager,
-		ImageManager $imageManager
+		ImageManager $imageManager,
+		ThemesService $themesService
 	) {
 		parent::__construct($appName, $request);
 
@@ -117,10 +93,10 @@ class ThemingController extends Controller {
 		$this->config = $config;
 		$this->tempManager = $tempManager;
 		$this->appData = $appData;
-		$this->scssCacher = $scssCacher;
 		$this->urlGenerator = $urlGenerator;
 		$this->appManager = $appManager;
 		$this->imageManager = $imageManager;
+		$this->themesService = $themesService;
 	}
 
 	/**
@@ -184,9 +160,6 @@ class ThemingController extends Controller {
 		}
 
 		$this->themingDefaults->set($setting, $value);
-
-		// reprocess server scss for preview
-		$cssCached = $this->scssCacher->process(\OC::$SERVERROOT, 'core/css/css-variables.scss', 'core');
 
 		return new DataResponse(
 			[
@@ -262,7 +235,6 @@ class ThemingController extends Controller {
 		}
 
 		$name = $image['name'];
-		$cssCached = $this->scssCacher->process(\OC::$SERVERROOT, 'core/css/css-variables.scss', 'core');
 
 		return new DataResponse(
 			[
@@ -271,7 +243,6 @@ class ThemingController extends Controller {
 						'name' => $name,
 						'url' => $this->imageManager->getImageUrl($key),
 						'message' => $this->l10n->t('Saved'),
-						'serverCssUrl' => $this->urlGenerator->linkTo('', $this->scssCacher->getCachedSCSS('core', '/core/css/css-variables.scss'))
 					],
 				'status' => 'success'
 			]
@@ -288,8 +259,6 @@ class ThemingController extends Controller {
 	 */
 	public function undo(string $setting): DataResponse {
 		$value = $this->themingDefaults->undo($setting);
-		// reprocess server scss for preview
-		$cssCached = $this->scssCacher->process(\OC::$SERVERROOT, 'core/css/css-variables.scss', 'core');
 
 		return new DataResponse(
 			[
@@ -297,7 +266,6 @@ class ThemingController extends Controller {
 					[
 						'value' => $value,
 						'message' => $this->l10n->t('Saved'),
-						'serverCssUrl' => $this->urlGenerator->linkTo('', $this->scssCacher->getCachedSCSS('core', '/core/css/css-variables.scss'))
 					],
 				'status' => 'success'
 			]
@@ -341,25 +309,29 @@ class ThemingController extends Controller {
 	 * @NoSameSiteCookieRequired
 	 *
 	 * @return FileDisplayResponse|NotFoundResponse
-	 * @throws NotPermittedException
-	 * @throws \Exception
-	 * @throws \OCP\App\AppPathNotFoundException
 	 */
-	public function getStylesheet() {
-		$appPath = $this->appManager->getAppPath('theming');
-
-		/* SCSSCacher is required here
-		 * We cannot rely on automatic caching done by \OC_Util::addStyle,
-		 * since we need to add the cacheBuster value to the url
-		 */
-		$cssCached = $this->scssCacher->process($appPath, 'css/theming.scss', 'theming');
-		if (!$cssCached) {
+	public function getThemeVariables(string $themeId, bool $plain) {
+		$theme = $this->themesService->getThemes()[$themeId];
+		if (!$theme) {
 			return new NotFoundResponse();
 		}
 
+		// Generate variables
+		$variables = '';
+		foreach ($theme->getCSSVariables() as $variable => $value) {
+			$variable .= "$variable:$value; ";
+		};
+
+		// If plain is set, the browser decides of the css priority
+		if ($plain) {
+			$css = ":root {$variables}";
+		} else { 
+			// If not set, we'll rely on the body class
+			$css = "body[data-theme-$themeId] {$variables}";
+		}
+
 		try {
-			$cssFile = $this->scssCacher->getCachedCSS('theming', 'theming.css');
-			$response = new FileDisplayResponse($cssFile, Http::STATUS_OK, ['Content-Type' => 'text/css']);
+			$response = new DataResponse($css, Http::STATUS_OK, ['Content-Type' => 'text/css']);
 			$response->cacheFor(86400);
 			return $response;
 		} catch (NotFoundException $e) {
