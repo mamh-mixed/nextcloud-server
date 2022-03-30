@@ -24,7 +24,7 @@ declare(strict_types=1);
  */
 namespace OCA\Theming\Themes;
 
-use OCP\Theming\ITheme;
+use OCA\Theming\ITheme;
 
 class HighContrastTheme extends DefaultTheme implements ITheme {
 

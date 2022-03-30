@@ -27,6 +27,7 @@ namespace OCA\Theming\Listener;
 
 use OCA\Theming\AppInfo\Application;
 use OCA\Theming\Service\JSDataService;
+use OCA\Theming\Service\ThemeInjectionService;
 use OCA\Theming\Service\ThemesService;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
@@ -38,21 +39,17 @@ use OCP\IURLGenerator;
 class BeforeTemplateRenderedListener implements IEventListener {
 
 	private IInitialStateService $initialStateService;
-	private IURLGenerator $urlGenerator;
-	private IConfig $config;
 	private IServerContainer $serverContainer;
+	private ThemeInjectionService $themeInjectionService;
 
 	public function __construct(
 		IInitialStateService $initialStateService,
-		IURLGenerator $urlGenerator,
-		IConfig $config,
 		IServerContainer $serverContainer,
-		ThemesService $themesService
+		ThemeInjectionService $themeInjectionService
 	) {
 		$this->initialStateService = $initialStateService;
-		$this->urlGenerator = $urlGenerator;
-		$this->config = $config;
 		$this->serverContainer = $serverContainer;
+		$this->themeInjectionService = $themeInjectionService;
 	}
 
 	public function handle(Event $event): void {
@@ -74,6 +71,8 @@ class BeforeTemplateRenderedListener implements IEventListener {
 		// 		'href' => $linkToCSS,
 		// 	]
 		// );
+
+		$this->themeInjectionService->injectHeaders();
 
 		// Making sure to inject just after core
 		\OCP\Util::addScript('theming', 'theming', 'core');

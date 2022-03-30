@@ -24,7 +24,7 @@ declare(strict_types=1);
  */
 namespace OCA\Theming\Themes;
 
-use OCP\Theming\ITheme;
+use OCA\Theming\ITheme;
 
 class DarkTheme extends DefaultTheme implements ITheme {
 
@@ -37,11 +37,35 @@ class DarkTheme extends DefaultTheme implements ITheme {
 	}
 
 	public function getCSSVariables(): array {
-		$variables = parent::getCSSVariables();
+		$colorMainText = '#D8D8D8';
+		$colorMainBackground = '#171717';
+		$colorMainBackgroundRGB = join(',', $this->util->hexToRGB($colorMainBackground));
+		$colorBoxShadow = $this->util->darken($colorMainBackground, 70);
+		$colorBoxShadowRGB = join(',', $this->util->hexToRGB($colorBoxShadow));
 
-		// FIXME …
-		$variables = $variables;
+		return [
+			'--color-main-text' => $colorMainText,
+			'--color-main-background' => $colorMainBackground,
+			'--color-main-background-rgb' => $colorMainBackgroundRGB,
 
-		return $variables;
+			'--color-background-hover' => $this->util->lighten($colorMainBackground, 4),
+			'--color-background-dark' => $this->util->lighten($colorMainBackground, 7),
+			'--color-background-darker' => $this->util->lighten($colorMainBackground, 14),
+
+			'--color-placeholder-light' => $this->util->lighten($colorMainBackground, 10),
+			'--color-placeholder-dark' => $this->util->lighten($colorMainBackground, 20),
+
+			'--color-text-maxcontrast' => $this->util->darken($colorMainText, 30),
+			'--color-text-light' => $this->util->darken($colorMainText, 10),
+			'--color-text-lighter' => $this->util->darken($colorMainText, 20),
+
+			'--color-loading-light' => '#777',
+			'--color-loading-dark' => '#CCC',
+
+			'--color-box-shadow-rgb' => $colorBoxShadowRGB,
+
+			'--color-border' => $this->util->lighten($colorMainBackground, 7),
+			'--color-border-dark' => $this->util->lighten($colorMainBackground, 14),
+		];
 	}
 }

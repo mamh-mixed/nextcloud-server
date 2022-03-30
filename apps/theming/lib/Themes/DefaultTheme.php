@@ -26,7 +26,7 @@ namespace OCA\Theming\Themes;
 
 use OCA\Theming\ThemingDefaults;
 use OCA\Theming\Util;
-use OCP\Theming\ITheme;
+use OCA\Theming\ITheme;
 
 class DefaultTheme implements ITheme {
 	public Util $util;
@@ -51,52 +51,57 @@ class DefaultTheme implements ITheme {
 	public function getCSSVariables(): array {
 		$colorMainText = '#222222';
 		$colorMainBackground = '#ffffff';
+		$colorMainBackgroundRGB = join(',', $this->util->hexToRGB($colorMainBackground));
+		$colorBoxShadow = $this->util->darken($colorMainBackground, 70);
+		$colorBoxShadowRGB = join(',', $this->util->hexToRGB($colorBoxShadow));
 
 		return [
 			'--color-main-text' => $colorMainText,
 			'--color-main-background' => $colorMainBackground,
-			'--color-main-background-translucent' => 'rgba(var(--color-main-background), .97)',
+			'--color-main-background-rgb' => $colorMainBackgroundRGB,
+			'--color-main-background-translucent' => 'rgba(var(--color-main-background-rgb), .97)',
 
 			// To use like this: background-image: linear-gradient(0, var('--gradient-main-background));
 			'--gradient-main-background' => 'var(--color-main-background) 0%, var(--color-main-background-translucent) 85%, transparent 100%',
 
-			'--color-background-hover' => $this->util->darken($colorMainBackground, .04),
-			'--color-background-dark' => $this->util->darken($colorMainBackground, .07),
-			'--color-background-darker' => $this->util->darken($colorMainBackground, .14),
+			'--color-background-hover' => $this->util->darken($colorMainBackground, 4),
+			'--color-background-dark' => $this->util->darken($colorMainBackground, 7),
+			'--color-background-darker' => $this->util->darken($colorMainBackground, 14),
 
-			'--color-placeholder-light' => $this->util->darken($colorMainBackground, .1),
-			'--color-placeholder-dark' => $this->util->darken($colorMainBackground, .2),
+			'--color-placeholder-light' => $this->util->darken($colorMainBackground, 10),
+			'--color-placeholder-dark' => $this->util->darken($colorMainBackground, 20),
 
 			'--color-primary' => $this->primaryColor,
 			'--color-primary-text' => $this->util->invertTextColor($this->primaryColor) ? '#000000' : '#ffffff',
-			'--color-primary-hover' => $this->util->mix($this->primaryColor, $colorMainBackground, 0.8),
-			'--color-primary-light' => $this->util->mix($this->primaryColor, $colorMainBackground, 0.1),
+			'--color-primary-hover' => $this->util->mix($this->primaryColor, $colorMainBackground, 80),
+			'--color-primary-light' => $this->util->mix($this->primaryColor, $colorMainBackground, 10),
 			'--color-primary-light-text' => $this->primaryColor,
-			'--color-primary-light-hover' => $this->util->mix($this->primaryColor, $colorMainText, 0.1),
-			'--color-primary-text-dark' => $this->util->darken($this->util->invertTextColor($this->primaryColor) ? '#000000' : '#ffffff', .07),
+			'--color-primary-light-hover' => $this->util->mix($this->primaryColor, $colorMainText, 10),
+			'--color-primary-text-dark' => $this->util->darken($this->util->invertTextColor($this->primaryColor) ? '#000000' : '#ffffff', 7),
 			'--color-primary-element' => $this->util->elementColor($this->primaryColor),
-			'--color-primary-element-hover' => $this->util->mix($this->util->elementColor($this->primaryColor), $colorMainBackground, 0.8),
-			'--color-primary-element-light' => $this->util->lighten($this->util->elementColor($this->primaryColor), .15),
-			'--color-primary-element-lighter' => $this->util->mix($this->util->elementColor($this->primaryColor), $colorMainBackground, 0.15),
+			'--color-primary-element-hover' => $this->util->mix($this->util->elementColor($this->primaryColor), $colorMainBackground, 80),
+			'--color-primary-element-light' => $this->util->lighten($this->util->elementColor($this->primaryColor), 15),
+			'--color-primary-element-lighter' => $this->util->mix($this->util->elementColor($this->primaryColor), $colorMainBackground, 15),
 
 			'--color-error' => '#e9322d',
-			'--color-error-hover' => $this->util->mix('#e9322d', $colorMainBackground, 0.8),
+			'--color-error-hover' => $this->util->mix('#e9322d', $colorMainBackground, 80),
 			'--color-warning' => '#eca700',
-			'--color-warning-hover' => $this->util->mix('#eca700', $colorMainBackground, 0.8),
+			'--color-warning-hover' => $this->util->mix('#eca700', $colorMainBackground, 80),
 			'--color-success' => '#46ba61',
-			'--color-success-hover' => $this->util->mix('#46ba61', $colorMainBackground, 0.8),
+			'--color-success-hover' => $this->util->mix('#46ba61', $colorMainBackground, 80),
 
-			'--color-text-maxcontrast' => $this->util->lighten($colorMainText, .33),
+			'--color-text-maxcontrast' => $this->util->lighten($colorMainText, 33),
 			'--color-text-light' => $colorMainText,
-			'--color-text-lighter' => $this->util->lighten($colorMainText, .33),
+			'--color-text-lighter' => $this->util->lighten($colorMainText, 33),
 
 			'--color-loading-light' => '#cccccc',
 			'--color-loading-dark' => '#444444',
 
-			'--color-box-shadow' => 'transparentize(nc-darken($color-main-background, 70%), 0.5)',
+			'--color-box-shadow-rgb' => $colorBoxShadowRGB,
+			'--color-box-shadow' => "rgba(var(--color-box-shadow-rgb), 0.5)",
 
-			'--color-border' => $this->util->darken($colorMainBackground, .07),
-			'--color-border-dark' => $this->util->darken($colorMainBackground, .14),
+			'--color-border' => $this->util->darken($colorMainBackground, 7),
+			'--color-border-dark' => $this->util->darken($colorMainBackground, 14),
 
 			// FIXME Add once we start supporting "(prefers-reduced-motion)"
 			// '--animation-quick' => '$animation-quick',

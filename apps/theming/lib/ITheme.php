@@ -21,7 +21,7 @@ declare(strict_types=1);
  *
  */
 
-namespace OCP\Theming;
+namespace OCA\Theming;
 
 /**
  * Interface ITheme

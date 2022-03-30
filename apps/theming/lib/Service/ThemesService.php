@@ -26,7 +26,7 @@ use OCA\Theming\Themes\DefaultTheme;
 use OCA\Theming\Themes\DarkTheme;
 use OCA\Theming\Themes\DarkHighContrastTheme;
 use OCA\Theming\Themes\HighContrastTheme;
-use OCP\Theming\ITheme;
+use OCA\Theming\ITheme;
 
 class ThemesService {
 
@@ -39,10 +39,10 @@ class ThemesService {
 								HighContrastTheme $highContrastTheme) {
 		// Register themes
 		$this->themesProviders = [
-			$defaultTheme->id			=> $defaultTheme,
-			$darkTheme->id				=> $darkTheme,
-			$darkHighContrastTheme->id	=> $darkHighContrastTheme,
-			$highContrastTheme->id		=> $highContrastTheme,
+			$defaultTheme->getId()			=> $defaultTheme,
+			$darkTheme->getId()				=> $darkTheme,
+			$darkHighContrastTheme->getId()	=> $darkHighContrastTheme,
+			$highContrastTheme->getId()		=> $highContrastTheme,
 		];
 	}
 

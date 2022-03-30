@@ -43,6 +43,7 @@ use OCA\Theming\ThemingDefaults;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\AppFramework\Http\NotFoundResponse;
@@ -310,28 +311,30 @@ class ThemingController extends Controller {
 	 *
 	 * @return FileDisplayResponse|NotFoundResponse
 	 */
-	public function getThemeVariables(string $themeId, bool $plain) {
-		$theme = $this->themesService->getThemes()[$themeId];
-		if (!$theme) {
+	public function getThemeVariables(string $themeId, bool $plain = false) {
+		$themes = $this->themesService->getThemes();
+		if (!in_array($themeId, array_keys($themes))) {
 			return new NotFoundResponse();
 		}
+
+		$theme = $themes[$themeId];
 
 		// Generate variables
 		$variables = '';
 		foreach ($theme->getCSSVariables() as $variable => $value) {
-			$variable .= "$variable:$value; ";
+			$variables .= "$variable:$value; ";
 		};
 
 		// If plain is set, the browser decides of the css priority
 		if ($plain) {
-			$css = ":root {$variables}";
+			$css = ":root { $variables }";
 		} else { 
 			// If not set, we'll rely on the body class
-			$css = "body[data-theme-$themeId] {$variables}";
+			$css = "body[data-theme-$themeId] { $variables }";
 		}
 
 		try {
-			$response = new DataResponse($css, Http::STATUS_OK, ['Content-Type' => 'text/css']);
+			$response = new DataDisplayResponse($css, Http::STATUS_OK, ['Content-Type' => 'text/css']);
 			$response->cacheFor(86400);
 			return $response;
 		} catch (NotFoundException $e) {

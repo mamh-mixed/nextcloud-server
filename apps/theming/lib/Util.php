@@ -91,17 +91,17 @@ class Util {
 		return $color;
 	}
 
-	public function mix(string $color1, string $color2, float $factor): string {
+	public function mix(string $color1, string $color2, int $factor): string {
 		$color = new Color($color1);
 		return $color->mix($color2, $factor);
 	}
 
-	public function lighten(string $color, float $factor): string {
+	public function lighten(string $color, int $factor): string {
 		$color = new Color($color);
 		return $color->lighten($factor);
 	}
 
-	public function darken(string $color, float $factor): string {
+	public function darken(string $color, int $factor): string {
 		$color = new Color($color);
 		return $color->darken($factor);
 	}
@@ -119,7 +119,7 @@ class Util {
 	 */
 	public function toHSL(string $red, string $green, string $blue): array {
 		$color = new Color(Color::rgbToHex(['R' => $red, 'G' => $green, 'B' => $blue]));
-		return $color->getHsl();
+		return array_values($color->getHsl());
 	}
 
 	/**
@@ -127,7 +127,7 @@ class Util {
 	 * @return float
 	 */
 	public function calculateLuminance(string $color): float {
-		[$red, $green, $blue] = array_values($this->hexToRGB($color));
+		[$red, $green, $blue] = $this->hexToRGB($color);
 		$hsl = $this->toHSL($red, $green, $blue);
 		return $hsl[2] / 100;
 	}
@@ -148,7 +148,7 @@ class Util {
 	 */
 	public function hexToRGB(string $color): array {
 		$color = new Color($color);
-		return $color->getRgb();
+		return array_values($color->getRgb());
 	}
 
 	/**

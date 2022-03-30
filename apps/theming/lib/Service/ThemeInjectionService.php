@@ -20,44 +20,49 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-namespace OCA\Theming\Themes;
+namespace OCA\Theming\Service;
 
+use OCA\Theming\Themes\DefaultTheme;
+use OCP\IURLGenerator;
 use OCP\Util;
 
 class ThemeInjectionService {
 
+	private IURLGenerator $urlGenerator;
 	private ThemesService $themesService;
 	private DefaultTheme $defaultTheme;
 
-	public function __construct(ThemesService $themesService,
+	public function __construct(IURLGenerator $urlGenerator,
+								ThemesService $themesService,
 								DefaultTheme $defaultTheme) {
+		$this->urlGenerator = $urlGenerator;
 		$this->themesService = $themesService;
 		$this->defaultTheme = $defaultTheme;
 	}
 
 	public function injectHeaders() {
 		$themes = $this->themesService->getThemes();
-		$defaultTheme = $themes[$this->defaultTheme->id];
+		$defaultTheme = $themes[$this->defaultTheme->getId()];
 		$mediaThemes = array_filter($themes, function($theme) {
 			// Check if the theme provides a media query
 			return !!$theme->getMediaQuery();
 		});
 
 		// Default theme fallback
-		$this->addThemeHeader($defaultTheme->id);
+		$this->addThemeHeader($defaultTheme->getId());
 		
 		// Themes applied by media queries
 		foreach($mediaThemes as $theme) {
-			$this->addThemeHeader($theme->id, true, $theme->getMediaQuery());
+			$this->addThemeHeader($theme->getId(), true, $theme->getMediaQuery());
 		}
 
 		// Themes 
 		foreach($this->themesService->getThemes() as $theme) {
-			$this->addThemeHeader($theme->id, false);
+			$this->addThemeHeader($theme->getId(), false);
 		}
 	}
 
-	private function addThemeHeader(string $themeId, bool $plain = false, string $media = null) {
+	private function addThemeHeader(string $themeId, bool $plain = true, string $media = null) {
 		$linkToCSS = $this->urlGenerator->linkToRoute('theming.Theming.getThemeVariables', [
 			'themeId' => $themeId,
 			'plain' => $plain,
