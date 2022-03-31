@@ -26,7 +26,7 @@ namespace OCA\Theming\Themes;
 
 use OCA\Theming\ITheme;
 
-class DarkHighContrastTheme extends DefaultTheme implements ITheme {
+class DarkHighContrastTheme extends HighContrastTheme implements ITheme {
 
 	public function getId(): string {
 		return 'dark-highcontrast';

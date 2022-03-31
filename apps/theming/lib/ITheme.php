@@ -29,6 +29,7 @@ namespace OCA\Theming;
  * @since 25.0.0
  */
 interface ITheme {
+
 	/**
 	 * Unique theme id
 	 * @since 25.0.0

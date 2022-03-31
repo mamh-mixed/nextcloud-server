@@ -45,7 +45,7 @@ return ['routes' => [
 	],
 	[
 		'name' => 'Theming#getThemeVariables',
-		'url' => '/theme/{themeId}',
+		'url' => '/theme/{themeId}.css',
 		'verb' => 'GET',
 	],
 	[

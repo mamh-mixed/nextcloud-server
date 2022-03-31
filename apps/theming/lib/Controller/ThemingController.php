@@ -162,16 +162,12 @@ class ThemingController extends Controller {
 
 		$this->themingDefaults->set($setting, $value);
 
-		return new DataResponse(
-			[
-				'data' =>
-					[
-						'message' => $this->l10n->t('Saved'),
-						'serverCssUrl' => $this->urlGenerator->linkTo('', $this->scssCacher->getCachedSCSS('core', '/core/css/css-variables.scss'))
-					],
-				'status' => 'success'
-			]
-		);
+		return new DataResponse([
+			'data' => [
+				'message' => $this->l10n->t('Saved'),
+			],
+			'status' => 'success'
+		]);
 	}
 
 	/**

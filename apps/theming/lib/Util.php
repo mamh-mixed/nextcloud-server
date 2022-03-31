@@ -93,17 +93,17 @@ class Util {
 
 	public function mix(string $color1, string $color2, int $factor): string {
 		$color = new Color($color1);
-		return $color->mix($color2, $factor);
+		return '#' . $color->mix($color2, $factor);
 	}
 
 	public function lighten(string $color, int $factor): string {
 		$color = new Color($color);
-		return $color->lighten($factor);
+		return '#' . $color->lighten($factor);
 	}
 
 	public function darken(string $color, int $factor): string {
 		$color = new Color($color);
-		return $color->darken($factor);
+		return '#' . $color->darken($factor);
 	}
 
 	/**

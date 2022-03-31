@@ -37,13 +37,15 @@ class DarkTheme extends DefaultTheme implements ITheme {
 	}
 
 	public function getCSSVariables(): array {
+		$defaultVariables = parent::getCSSVariables();
+
 		$colorMainText = '#D8D8D8';
 		$colorMainBackground = '#171717';
 		$colorMainBackgroundRGB = join(',', $this->util->hexToRGB($colorMainBackground));
 		$colorBoxShadow = $this->util->darken($colorMainBackground, 70);
 		$colorBoxShadowRGB = join(',', $this->util->hexToRGB($colorBoxShadow));
 
-		return [
+		return array_merge($defaultVariables, [	
 			'--color-main-text' => $colorMainText,
 			'--color-main-background' => $colorMainBackground,
 			'--color-main-background-rgb' => $colorMainBackgroundRGB,
@@ -66,6 +68,8 @@ class DarkTheme extends DefaultTheme implements ITheme {
 
 			'--color-border' => $this->util->lighten($colorMainBackground, 7),
 			'--color-border-dark' => $this->util->lighten($colorMainBackground, 14),
-		];
+
+			'--background-invert-if-bright' => 'invert(100%)',
+		]);
 	}
 }

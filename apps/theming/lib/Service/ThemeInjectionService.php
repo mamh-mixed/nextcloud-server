@@ -45,7 +45,7 @@ class ThemeInjectionService {
 		$defaultTheme = $themes[$this->defaultTheme->getId()];
 		$mediaThemes = array_filter($themes, function($theme) {
 			// Check if the theme provides a media query
-			return !!$theme->getMediaQuery();
+			return (bool)$theme->getMediaQuery();
 		});
 
 		// Default theme fallback
@@ -58,10 +58,21 @@ class ThemeInjectionService {
 
 		// Themes 
 		foreach($this->themesService->getThemes() as $theme) {
+			// Ignore default theme as already processed first
+			if ($theme->getId() === $this->defaultTheme->getId()) {
+				continue;
+			}
 			$this->addThemeHeader($theme->getId(), false);
 		}
 	}
 
+	/**
+	 * Inject theme header into rendered page
+	 * 
+	 * @param string $themeId the theme ID
+	 * @param bool $plain request the :root syntax
+	 * @param string $media media query to use in the <link> element
+	 */
 	private function addThemeHeader(string $themeId, bool $plain = true, string $media = null) {
 		$linkToCSS = $this->urlGenerator->linkToRoute('theming.Theming.getThemeVariables', [
 			'themeId' => $themeId,
@@ -71,6 +82,7 @@ class ThemeInjectionService {
 			'rel' => 'stylesheet',
 			'media' => $media,
 			'href' => $linkToCSS,
+			'class' => 'theme'
 		]);
 	}
 }
