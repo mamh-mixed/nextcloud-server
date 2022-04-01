@@ -157,16 +157,6 @@ $invert: luma($color-primary) > 0.6;
 	}
 }
 
-@if variable_exists('theming-favicon-mime') and $theming-favicon-mime != '' {
-	#theming .advanced-option-favicon .image-preview {
-		background-image: $image-favicon;
-	}
-} @else {
-	#theming .advanced-option-favicon .image-preview {
-		background-image: none;
-	}
-}
-
 input.primary {
 	background-color: $color-primary-element;
 	border: 1px solid $color-primary-text;
@@ -303,11 +293,5 @@ input.primary {
 	/* show border around quota bar in files app */
 	.app-files #quota .quota-container {
 		border: 1px solid #ebebeb;
-	}
-}
-
-@if ($has-legal-links == 'true') {
-	footer {
-		height: 92px;
 	}
 }
