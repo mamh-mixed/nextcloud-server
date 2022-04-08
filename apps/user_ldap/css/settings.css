@@ -210,7 +210,6 @@ select[multiple=multiple] + button {
 }
 
 #ldapSettings {
-	background-color: white;
 	padding: 0;
 }
 
