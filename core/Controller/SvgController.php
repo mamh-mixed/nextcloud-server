@@ -43,18 +43,10 @@ use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\IRequest;
 
 class SvgController extends Controller {
-
-	/** @var string */
-	protected $serverRoot;
-
-	/** @var ITimeFactory */
-	protected $timeFactory;
-
-	/** @var IAppManager */
-	protected $appManager;
-
-	/** @var IconsCacher */
-	private $iconsCacher;
+	protected string $serverRoot;
+	protected ITimeFactory $timeFactory;
+	protected IAppManager $appManager;
+	private IconsCacher $iconsCacher;
 
 	public function __construct(string $appName,
 								IRequest $request,
@@ -76,9 +68,6 @@ class SvgController extends Controller {
 	 *
 	 * Generate svg from filename with the requested color
 	 *
-	 * @param string $folder
-	 * @param string $fileName
-	 * @param string $color
 	 * @return DataDisplayResponse|NotFoundResponse
 	 */
 	public function getSvgFromCore(string $folder, string $fileName, string $color = 'ffffff') {
@@ -93,9 +82,6 @@ class SvgController extends Controller {
 	 *
 	 * Generate svg from filename with the requested color
 	 *
-	 * @param string $app
-	 * @param string $fileName
-	 * @param string $color
 	 * @return DataDisplayResponse|NotFoundResponse
 	 */
 	public function getSvgFromApp(string $app, string $fileName, string $color = 'ffffff') {
@@ -112,9 +98,6 @@ class SvgController extends Controller {
 	/**
 	 * Generate svg from filename with the requested color
 	 *
-	 * @param string $path
-	 * @param string $color
-	 * @param string $fileName
 	 * @return DataDisplayResponse|NotFoundResponse
 	 */
 	private function getSvg(string $path, string $color, string $fileName) {

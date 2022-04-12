@@ -32,18 +32,9 @@ use OCP\IRequest;
 use OCP\IUserSession;
 
 class ContactsMenuController extends Controller {
+	private Manager $manager;
+	private IUserSession $userSession;
 
-	/** @var Manager */
-	private $manager;
-
-	/** @var IUserSession */
-	private $userSession;
-
-	/**
-	 * @param IRequest $request
-	 * @param IUserSession $userSession
-	 * @param Manager $manager
-	 */
 	public function __construct(IRequest $request, IUserSession $userSession, Manager $manager) {
 		parent::__construct('core', $request);
 		$this->userSession = $userSession;
@@ -63,11 +54,9 @@ class ContactsMenuController extends Controller {
 	/**
 	 * @NoAdminRequired
 	 *
-	 * @param integer $shareType
-	 * @param string $shareWith
 	 * @return JSONResponse|\JsonSerializable
 	 */
-	public function findOne($shareType, $shareWith) {
+	public function findOne(int $shareType, string $shareWith) {
 		$contact = $this->manager->findOne($this->userSession->getUser(), $shareType, $shareWith);
 
 		if ($contact) {
