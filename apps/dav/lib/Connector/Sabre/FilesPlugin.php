@@ -444,7 +444,7 @@ class FilesPlugin extends ServerPlugin {
 			if ($this->config->getSystemValueBool('enable_file_metadata', true)) {
 				$propFind->handle(self::FILE_METADATA_SIZE, function () use ($node) {
 					if (!str_starts_with($node->getFileInfo()->getMimetype(), 'image')) {
-						return json_encode([]);
+						return json_encode((object)[]);
 					}
 
 					if ($node->hasMetadata('size')) {
@@ -460,7 +460,7 @@ class FilesPlugin extends ServerPlugin {
 						\OC::$server->get(LoggerInterface::class)->warning('Inefficient fetching of metadata');
 					}
 
-					return json_encode($sizeMetadata->getMetadata());
+					return json_encode((object)$sizeMetadata->getMetadata());
 				});
 			}
 		}
