@@ -86,7 +86,7 @@ class FilesPlugin extends ServerPlugin {
 	public const FILE_METADATA_SIZE = '{http://nextcloud.org/ns}file-metadata-size';
 
 	/** Reference to main server object */
-	private Server $server;
+	private ?Server $server = null;
 	private Tree $tree;
 	private IUserSession $userSession;
 
