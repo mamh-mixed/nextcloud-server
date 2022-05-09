@@ -10,6 +10,7 @@ declare(strict_types=1);
  * @author John Molakvoæ <skjnldsv@protonmail.com>
  * @author Robin Appelman <robin@icewind.nl>
  * @author Roeland Jago Douma <roeland@famdouma.nl>
+ * @author Marcel Klehr <mklehr@gmx.net>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -27,12 +28,15 @@ declare(strict_types=1);
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-namespace OCA\Files\Search;
+namespace OCA\SystemTags\Search;
 
 use OC\Files\Search\SearchBinaryOperator;
 use OC\Files\Search\SearchComparison;
 use OC\Files\Search\SearchOrder;
 use OC\Files\Search\SearchQuery;
+use OCP\SystemTag\ISystemTag;
+use OCP\SystemTag\ISystemTagManager;
+use OCP\SystemTag\ISystemTagObjectMapper;
 use OCP\Files\FileInfo;
 use OCP\Files\IMimeTypeDetector;
 use OCP\Files\IRootFolder;
@@ -46,8 +50,10 @@ use OCP\Search\IProvider;
 use OCP\Search\ISearchQuery;
 use OCP\Search\SearchResult;
 use OCP\Search\SearchResultEntry;
+use RecursiveArrayIterator;
+use RecursiveIteratorIterator;
 
-class FilesSearchProvider implements IProvider {
+class TagSearchProvider implements IProvider {
 
 	/** @var IL10N */
 	private $l10n;
@@ -60,31 +66,37 @@ class FilesSearchProvider implements IProvider {
 
 	/** @var IRootFolder */
 	private $rootFolder;
+	private ISystemTagObjectMapper $objectMapper;
+	private ISystemTagManager $tagManager;
 
 	public function __construct(
-		IL10N $l10n,
-		IURLGenerator $urlGenerator,
+		IL10N             $l10n,
+		IURLGenerator     $urlGenerator,
 		IMimeTypeDetector $mimeTypeDetector,
-		IRootFolder $rootFolder
+		IRootFolder       $rootFolder,
+		ISystemTagObjectMapper $objectMapper,
+		ISystemTagManager $tagManager
 	) {
 		$this->l10n = $l10n;
 		$this->urlGenerator = $urlGenerator;
 		$this->mimeTypeDetector = $mimeTypeDetector;
 		$this->rootFolder = $rootFolder;
+		$this->objectMapper = $objectMapper;
+		$this->tagManager = $tagManager;
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getId(): string {
-		return 'files';
+		return 'systemtags';
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getName(): string {
-		return $this->l10n->t('Files');
+		return $this->l10n->t('Tags');
 	}
 
 	/**
@@ -92,10 +104,9 @@ class FilesSearchProvider implements IProvider {
 	 */
 	public function getOrder(string $route, array $routeParameters): int {
 		if ($route === 'files.View.index') {
-			// Before comments
-			return -5;
+			return -4;
 		}
-		return 5;
+		return 6;
 	}
 
 	/**
@@ -105,7 +116,8 @@ class FilesSearchProvider implements IProvider {
 		$userFolder = $this->rootFolder->getUserFolder($user->getUID());
 		$fileQuery = new SearchQuery(
 			new SearchBinaryOperator(SearchBinaryOperator::OPERATOR_OR, [
-				new SearchComparison(ISearchComparison::COMPARE_LIKE, 'name', '%' . $query->getTerm() . '%'),
+				new SearchComparison(ISearchComparison::COMPARE_LIKE, 'tagname', '%' . $query->getTerm() . '%'),
+				new SearchComparison(ISearchComparison::COMPARE_LIKE, 'systemtag', '%' . $query->getTerm() . '%'),
 			]),
 			$query->getLimit(),
 			(int)$query->getCursor(),
@@ -114,10 +126,32 @@ class FilesSearchProvider implements IProvider {
 			] : [],
 			$user
 		);
+		$searchResults = $userFolder->search($fileQuery);
+		$resultIds = array_map(function(Node $node) {
+			return $node->getId();
+		}, $searchResults);
+		$matchedTags = $this->objectMapper->getTagIdsForObjects($resultIds, 'files');
+		$relevantTags =  $this->tagManager->getTagsByIds(array_unique($this->flattenArray($matchedTags)));
+		$tagResults = array_map(function(ISystemTag $tag) {
+			$thumbnailUrl = '';
+			$link = $this->urlGenerator->linkToRoute(
+				'files.view.index'
+			) . '?view=systemtagsfilter'; // @todo Link directly to the tag
+			$searchResultEntry = new SearchResultEntry(
+				$thumbnailUrl,
+				$tag->getName(),
+				'',
+				$this->urlGenerator->getAbsoluteURL($link),
+				'icon-tag'
+			);
+			return $searchResultEntry;
+		}, array_filter($relevantTags, function($tag) use ($query) {
+			return $tag->isUserVisible() && strpos($tag->getName(), $query->getTerm()) !== false;
+		}));
 
 		return SearchResult::paginated(
-			$this->l10n->t('Files'),
-			array_map(function (Node $result) use ($userFolder) {
+			$this->l10n->t('Tags'),
+			$tagResults + array_map(function (Node $result) use ($userFolder, $matchedTags) {
 				// Generate thumbnail url
 				$thumbnailUrl = $this->urlGenerator->linkToRouteAbsolute('core.Preview.getPreviewByFileId', ['x' => 32, 'y' => 32, 'fileId' => $result->getId()]);
 				$path = $userFolder->getRelativePath($result->getPath());
@@ -132,31 +166,39 @@ class FilesSearchProvider implements IProvider {
 				$searchResultEntry = new SearchResultEntry(
 					$thumbnailUrl,
 					$result->getName(),
-					$this->formatSubline($path),
+					$this->formatSubline($matchedTags[$result->getId()]),
 					$this->urlGenerator->getAbsoluteURL($link),
 					$result->getMimetype() === FileInfo::MIMETYPE_FOLDER ? 'icon-folder' : $this->mimeTypeDetector->mimeTypeIcon($result->getMimetype())
 				);
 				$searchResultEntry->addAttribute('fileId', (string)$result->getId());
 				$searchResultEntry->addAttribute('path', $path);
 				return $searchResultEntry;
-			}, $userFolder->search($fileQuery)),
+			}, $searchResults),
 			$query->getCursor() + $query->getLimit()
 		);
 	}
 
 	/**
-	 * Format subline for files
+	 * Format subline for tagged files: Show the first 3 tags
 	 *
-	 * @param string $path
+	 * @param array $tagInfo
 	 * @return string
 	 */
-	private function formatSubline(string $path): string {
-		// Do not show the location if the file is in root
-		if (strrpos($path, '/') > 0) {
-			$path = ltrim(dirname($path), '/');
-			return $this->l10n->t('in %s', [$path]);
-		} else {
-			return '';
-		}
+	private function formatSubline($tagInfo): string {
+		/**
+		 * @var ISystemTag[]
+		 */
+		$tags = $this->tagManager->getTagsByIds($tagInfo);
+		$tagNames = array_map(function($tag) {
+			return $tag->getName();
+		}, array_filter($tags, function($tag) {
+			return $tag->isUserVisible();
+		}));
+		return $this->l10n->t('with %s', [implode(', ', array_slice($tagNames, 0, 3))]);
+	}
+
+	private function flattenArray($array) {
+		$it = new RecursiveIteratorIterator(new RecursiveArrayIterator($array));
+		return iterator_to_array($it, true);
 	}
 }
