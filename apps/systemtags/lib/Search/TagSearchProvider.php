@@ -126,12 +126,16 @@ class TagSearchProvider implements IProvider {
 			] : [],
 			$user
 		);
+
+		// do search
 		$searchResults = $userFolder->search($fileQuery);
 		$resultIds = array_map(function(Node $node) {
 			return $node->getId();
 		}, $searchResults);
 		$matchedTags = $this->objectMapper->getTagIdsForObjects($resultIds, 'files');
 		$relevantTags =  $this->tagManager->getTagsByIds(array_unique($this->flattenArray($matchedTags)));
+
+		// prepare direct tag results
 		$tagResults = array_map(function(ISystemTag $tag) {
 			$thumbnailUrl = '';
 			$link = $this->urlGenerator->linkToRoute(
@@ -149,9 +153,10 @@ class TagSearchProvider implements IProvider {
 			return $tag->isUserVisible() && strpos($tag->getName(), $query->getTerm()) !== false;
 		}));
 
+		// prepare files results
 		return SearchResult::paginated(
 			$this->l10n->t('Tags'),
-			$tagResults + array_map(function (Node $result) use ($userFolder, $matchedTags) {
+			$tagResults + array_map(function (Node $result) use ($userFolder, $matchedTags, $query) {
 				// Generate thumbnail url
 				$thumbnailUrl = $this->urlGenerator->linkToRouteAbsolute('core.Preview.getPreviewByFileId', ['x' => 32, 'y' => 32, 'fileId' => $result->getId()]);
 				$path = $userFolder->getRelativePath($result->getPath());
@@ -166,7 +171,7 @@ class TagSearchProvider implements IProvider {
 				$searchResultEntry = new SearchResultEntry(
 					$thumbnailUrl,
 					$result->getName(),
-					$this->formatSubline($matchedTags[$result->getId()]),
+					$this->formatSubline($query, $matchedTags[$result->getId()]),
 					$this->urlGenerator->getAbsoluteURL($link),
 					$result->getMimetype() === FileInfo::MIMETYPE_FOLDER ? 'icon-folder' : $this->mimeTypeDetector->mimeTypeIcon($result->getMimetype())
 				);
@@ -181,10 +186,11 @@ class TagSearchProvider implements IProvider {
 	/**
 	 * Format subline for tagged files: Show the first 3 tags
 	 *
+	 * @param $query
 	 * @param array $tagInfo
 	 * @return string
 	 */
-	private function formatSubline($tagInfo): string {
+	private function formatSubline(ISearchQuery $query, array $tagInfo): string {
 		/**
 		 * @var ISystemTag[]
 		 */
@@ -194,6 +200,12 @@ class TagSearchProvider implements IProvider {
 		}, array_filter($tags, function($tag) {
 			return $tag->isUserVisible();
 		}));
+
+		// show the tag that you have searched for first
+		usort($tagNames, function($tagName) use($query) {
+			return strpos($tagName, $query->getTerm()) !== false? -1 :  1;
+		});
+
 		return $this->l10n->t('with %s', [implode(', ', array_slice($tagNames, 0, 3))]);
 	}
 
