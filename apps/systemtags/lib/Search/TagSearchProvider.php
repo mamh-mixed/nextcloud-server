@@ -140,7 +140,7 @@ class TagSearchProvider implements IProvider {
 			$thumbnailUrl = '';
 			$link = $this->urlGenerator->linkToRoute(
 				'files.view.index'
-			) . '?view=systemtagsfilter'; // @todo Link directly to the tag
+			) . '?view=systemtagsfilter&tags='.$tag->getId();
 			$searchResultEntry = new SearchResultEntry(
 				$thumbnailUrl,
 				$tag->getName(),
