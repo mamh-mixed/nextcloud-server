@@ -29,7 +29,6 @@ declare(strict_types=1);
  */
 namespace OCA\Files\Search;
 
-use OC\Files\Search\SearchBinaryOperator;
 use OC\Files\Search\SearchComparison;
 use OC\Files\Search\SearchOrder;
 use OC\Files\Search\SearchQuery;
@@ -104,9 +103,7 @@ class FilesSearchProvider implements IProvider {
 	public function search(IUser $user, ISearchQuery $query): SearchResult {
 		$userFolder = $this->rootFolder->getUserFolder($user->getUID());
 		$fileQuery = new SearchQuery(
-			new SearchBinaryOperator(SearchBinaryOperator::OPERATOR_OR, [
-				new SearchComparison(ISearchComparison::COMPARE_LIKE, 'name', '%' . $query->getTerm() . '%'),
-			]),
+			new SearchComparison(ISearchComparison::COMPARE_LIKE, 'name', '%' . $query->getTerm() . '%'),
 			$query->getLimit(),
 			(int)$query->getCursor(),
 			$query->getSortOrder() === ISearchQuery::SORT_DATE_DESC ? [
