@@ -46,6 +46,7 @@ use OCA\Settings\Mailer\NewUserMailHelper;
 use OCA\Settings\Middleware\SubadminMiddleware;
 use OCA\Settings\Search\AppSearch;
 use OCA\Settings\Search\SectionSearch;
+use OCA\Settings\SetupChecks\CheckUserCertificates;
 use OCA\Settings\UserMigration\AccountMigrator;
 use OCA\Settings\WellKnown\ChangePasswordHandler;
 use OCA\Settings\WellKnown\SecurityTxtHandler;
@@ -134,6 +135,7 @@ class Application extends App implements IBootstrap {
 				Util::getDefaultEmailAddress('no-reply')
 			);
 		});
+		$context->registerSetupCheck(CheckUserCertificates::class);
 
 		$context->registerUserMigrator(AccountMigrator::class);
 	}
