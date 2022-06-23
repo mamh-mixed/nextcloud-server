@@ -29,10 +29,19 @@ namespace OCA\DAV\CalDAV;
 
 use OCA\DAV\CalDAV\Auth\CustomPrincipalPlugin;
 use OCA\DAV\CalDAV\InvitationResponse\InvitationResponseServer;
+use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Calendar\Exceptions\CalendarException;
 use OCP\Calendar\ICreateFromString;
 use OCP\Constants;
+use OCP\Security\ISecureRandom;
+use Psr\Log\LoggerInterface;
 use Sabre\DAV\Exception\Conflict;
+use Sabre\VObject\Component\VCalendar;
+use Sabre\VObject\Component\VEvent;
+use Sabre\VObject\Document;
+use Sabre\VObject\ITip\Message;
+use Sabre\VObject\Property\VCard\DateTime;
+use Sabre\VObject\Reader;
 use function Sabre\Uri\split as uriSplit;
 
 class CalendarImpl implements ICreateFromString {
@@ -46,13 +55,6 @@ class CalendarImpl implements ICreateFromString {
 	/** @var array */
 	private $calendarInfo;
 
-	/**
-	 * CalendarImpl constructor.
-	 *
-	 * @param Calendar $calendar
-	 * @param array $calendarInfo
-	 * @param CalDavBackend $backend
-	 */
 	public function __construct(Calendar $calendar,
 								array $calendarInfo,
 								CalDavBackend $backend) {
@@ -176,5 +178,24 @@ class CalendarImpl implements ICreateFromString {
 		} finally {
 			fclose($stream);
 		}
+	}
+
+	public function handleIMipMessage(Message $iTipMessage): void {
+		$server = new InvitationResponseServer(false);
+
+		/** @var CustomPrincipalPlugin $plugin */
+		$plugin = $server->server->getPlugin('auth');
+		// we're working around the previous implementation
+		// that only allowed the public system principal to be used
+		// so set the custom principal here
+		$plugin->setCurrentPrincipal($this->calendar->getPrincipalURI());
+
+		if (empty($this->calendarInfo['uri'])) {
+			throw new CalendarException('Could not write to calendar as URI parameter is missing');
+		}
+		// Force calendar change URI
+		/** @var Schedule\Plugin $schedulingPlugin */
+		$schedulingPlugin = $server->server->getPlugin('caldav-schedule');
+		$schedulingPlugin->scheduleLocalDelivery($iTipMessage);
 	}
 }

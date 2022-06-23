@@ -27,6 +27,8 @@ declare(strict_types=1);
  */
 namespace OCP\Calendar;
 
+use OCA\DAV\CalDAV\CalendarHome;
+
 /**
  * This interface defines a lazy loading mechanism for
  * calendars for Public Consumption
@@ -38,8 +40,15 @@ interface ICalendarProvider {
 	/**
 	 * @param string $principalUri URI of the principal
 	 * @param string[] $calendarUris optionally specify which calendars to load, or all if this array is empty
-	 * @return ICalendar[]
+	 * @return ICreateFromString[]
 	 * @since 23.0.0
 	 */
 	public function getCalendars(string $principalUri, array $calendarUris = []): array;
+
+	/**
+	 * @param string $principalUri
+	 * @return CalendarHome
+	 * @since 25.0.0
+	 */
+	public function provideCalendarHome(string $principalUri): ?CalendarHome;
 }

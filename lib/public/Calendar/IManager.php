@@ -156,4 +156,27 @@ interface IManager {
 	 * @since 23.0.0
 	 */
 	public function newQuery(string $principalUri) : ICalendarQuery;
+
+	/**
+	 * Handle a iMip REPLY message
+	 *
+	 * @param string $principalUri
+	 * @param string $sender
+	 * @param string $recipient
+	 * @param string $calendarData
+	 * @return bool
+	 * @since 25.0.0
+	 */
+	public function handleIMipReply(string $principalUri, string $sender, string $recipient, string $calendarData): bool;
+
+	/**
+	 * Handle a iMip CANCEL message
+	 *
+	 * @param string $principalUri
+	 * @param string $sender
+	 * @param string $recipient
+	 * @param string $calendarData
+	 * @return mixed
+	 */
+	public function handleIMipCancel(string $principalUri, string $sender, string $recipient, string $calendarData): bool;
 }

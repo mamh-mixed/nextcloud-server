@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace OCA\DAV\CalDAV;
 
 use OCP\Calendar\ICalendarProvider;
+use OCP\Calendar\ICreateFromString;
 use OCP\IConfig;
 use OCP\IL10N;
 use Psr\Log\LoggerInterface;
@@ -51,6 +52,9 @@ class CalendarProvider implements ICalendarProvider {
 		$this->logger = $logger;
 	}
 
+	/**
+	 * @return ICreateFromString[]
+	 */
 	public function getCalendars(string $principalUri, array $calendarUris = []): array {
 		$calendarInfos = [];
 		if (empty($calendarUris)) {
@@ -69,9 +73,13 @@ class CalendarProvider implements ICalendarProvider {
 			$iCalendars[] = new CalendarImpl(
 				$calendar,
 				$calendarInfo,
-				$this->calDavBackend,
+				$this->calDavBackend
 			);
 		}
 		return $iCalendars;
+	}
+
+	public function provideCalendarHome(string $principalUri): CalendarHome {
+		return new CalendarHome($this->calDavBackend, $principalUri, $this->logger);
 	}
 }

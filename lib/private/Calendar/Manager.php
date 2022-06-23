@@ -27,12 +27,22 @@ declare(strict_types=1);
 namespace OC\Calendar;
 
 use OC\AppFramework\Bootstrap\Coordinator;
+use OCA\DAV\CalDAV\CalendarHome;
+use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\Calendar\Exceptions\CalendarException;
 use OCP\Calendar\ICalendar;
 use OCP\Calendar\ICalendarProvider;
 use OCP\Calendar\ICalendarQuery;
+use OCP\Calendar\ICreateFromString;
 use OCP\Calendar\IManager;
+use OCP\Security\ISecureRandom;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
+use Sabre\VObject\Component\VCalendar;
+use Sabre\VObject\Component\VEvent;
+use Sabre\VObject\ITip\Message;
+use Sabre\VObject\Property\VCard\DateTime;
+use Sabre\VObject\Reader;
 use Throwable;
 use function array_map;
 use function array_merge;
@@ -58,12 +68,20 @@ class Manager implements IManager {
 	/** @var LoggerInterface */
 	private $logger;
 
+	private ITimeFactory $timeFactory;
+
+	private ISecureRandom $random;
+
 	public function __construct(Coordinator $coordinator,
 								ContainerInterface $container,
-								LoggerInterface $logger) {
+								LoggerInterface $logger,
+								ITimeFactory $timeFactory,
+								ISecureRandom $random) {
 		$this->coordinator = $coordinator;
 		$this->container = $container;
 		$this->logger = $logger;
+		$this->timeFactory = $timeFactory;
+		$this->random = $random;
 	}
 
 	/**
@@ -167,6 +185,11 @@ class Manager implements IManager {
 		$this->calendarLoaders = [];
 	}
 
+	/**
+	 * @param string $principalUri
+	 * @param array $calendarUris
+	 * @return array|ICreateFromString[]
+	 */
 	public function getCalendarsForPrincipal(string $principalUri, array $calendarUris = []): array {
 		$context = $this->coordinator->getRegistrationContext();
 		if ($context === null) {
@@ -190,6 +213,26 @@ class Manager implements IManager {
 		);
 	}
 
+	public function getCalendarHome(string $principalUri): ?CalendarHome {
+		$context = $this->coordinator->getRegistrationContext();
+		if ($context === null) {
+			return null;
+		}
+
+		foreach ($context->getCalendarProviders() as $registration) {
+			try {
+				/** @var ICalendarProvider $provider */
+				$provider = $this->container->get($registration->getService());
+			} catch (Throwable $e) {
+				$this->logger->error('Could not load calendar provider ' . $registration->getService() . ': ' . $e->getMessage(), [
+					'exception' => $e,
+				]);
+				continue;
+			}
+			return $provider->provideCalendarHome($principalUri);
+		}
+	}
+
 	public function searchForPrincipal(ICalendarQuery $query): array {
 		/** @var CalendarQuery $query */
 		$calendars = $this->getCalendarsForPrincipal(
@@ -198,7 +241,6 @@ class Manager implements IManager {
 		);
 
 		$results = [];
-		/** @var ICalendar $calendar */
 		foreach ($calendars as $calendar) {
 			$r = $calendar->search(
 				$query->getSearchPattern() ?? '',
@@ -218,5 +260,218 @@ class Manager implements IManager {
 
 	public function newQuery(string $principalUri): ICalendarQuery {
 		return new CalendarQuery($principalUri);
+	}
+
+	// REPLY: the attendee has to be updated in the ORGANIZER calendar
+	public function handleIMipReply(string $principalUri, string $sender, string $recipient, string $calendarData): bool {
+		/** @var VCalendar $vObject */
+		$vObject = Reader::read($calendarData);
+		/** @var VEvent $vEvent */
+		$vEvent = $vObject->{'VEVENT'};
+
+		// First, we check if the correct method is passed to us
+		if (strcasecmp('REPLY', $vObject->{'METHOD'}->getValue()) !== 0) {
+			$this->logger->warning('Wrong method provided for processing');
+			return false;
+		}
+
+		// check if mail recipient and organizer are one and the same
+		$organizer = substr($vEvent->{'ORGANIZER'}->getValue(), 7);
+
+		if (strcasecmp($recipient, $organizer) !== 0) {
+			$this->logger->warning('Recipient and ORGANIZER must be identical');
+			return false;
+		}
+
+		//check if the event is in the future
+		/** @var DateTime $eventTime */
+		$eventTime = $vEvent->{'DTSTART'};
+		if ($eventTime->getDateTime()->getTimeStamp() < $this->timeFactory->getDateTime()->getTimestamp()) { // this might cause issues with recurrences
+			$this->logger->warning('Only events in the future are processed');
+			return false;
+		}
+
+		$original = $this->getCalendarHome($principalUri)->searchPrincipalByUid($principalUri, $vEvent->{'UID'}->getValue());
+		if (empty($original)) {
+			$this->logger->info('Event not found in calendar for principal ' . $principalUri . 'and UID' . $vEvent->{'UID'}->getValue());
+			return false;
+		}
+
+		$originalVObject = Reader::read($original['calendardata']);
+		/** @var VEvent $originalVevent */
+		$originalVevent = $originalVObject->{'VEVENT'};
+		// check if the organizer in the attached calendar data is the one in the original event
+		if (strcasecmp($originalVevent->{'ORGANIZER'}->getValue(), $vEvent->{'ORGANIZER'}->getValue()) !== 0) {
+			$this->logger->warning('Invalid ORGANIZER passed for REPLY');
+			return false;
+		}
+
+		// we need to compare the email address the REPLY is coming from (in Mail)
+		// to the email address in the ATTENDEE as specified in the RFC
+		$attendee = substr($vEvent->{'ATTENDEE'}->getValue(), 7);
+
+		if (strcasecmp($sender, $attendee) !== 0) {
+			$this->logger->warning('Party crashing is not supported for iMIP replies');
+			return false;
+		}
+
+		if (!isset($originalVevent->ATTENDEE)) {
+			$this->logger->warning('No attendees set in original VEVENT.');
+			return false;
+		}
+
+		// Sabre is also doing this but is letting newly added attendees "party crash"
+		// but we should not allow ATTENDEE modification here
+		$found = false;
+		foreach ($originalVevent->ATTENDEE as $a) {
+			if (strcasecmp($a->getValue(), $vEvent->{'ATTENDEE'}->getValue()) === 0) {
+				$found = true;
+				break;
+			}
+		}
+		if (!$found) {
+			$this->logger->warning('Party crashing is not supported for iMIP replies');
+			return false;
+		}
+
+		/** @var ICreateFromString $calendar */
+		$calendar = current(array_filter($this->getCalendarsForPrincipal($principalUri), function ($calendar) use ($original) {
+			return $calendar->getKey() === $original['calendarid'];
+		}));
+
+		if (!$calendar) {
+			return false;
+		}
+		// Check if this is a writable calendar
+		if (!($calendar instanceof ICreateFromString)) {
+			$this->logger->error('Could not update calendar for iMIP processing as calendar' . $calendar->getUri() . 'is not writable');
+			return false;
+		}
+
+		$iTipMessage = new Message();
+		$iTipMessage->recipient = $vEvent->{'ORGANIZER'}->getValue();
+		$iTipMessage->uid = $vEvent->{'UID'}->getValue();
+		$iTipMessage->component = 'VEVENT';
+		$iTipMessage->method = 'REPLY';
+		$iTipMessage->sequence = $vEvent->{'SEQUENCE'}->getValue() ?? 0;
+		$iTipMessage->sender = $vEvent->{'ATTENDEE'}->getValue();
+		$iTipMessage->message = $vEvent;
+		try {
+			$calendar->handleIMipMessage($iTipMessage); // sabre will handle the scheduling behind the scenes
+			return true;
+		} catch (CalendarException $e) {
+			$this->logger->error('Could not update calendar for iMIP processing', ['exception' => $e]);
+			return false;
+		}
+	}
+
+	// CANCEL: the event has to be updated in the ATTENDEEs calendar
+	public function handleIMipCancel(string $principalUri, string $sender, string $recipient, string $calendarData): bool {
+		$vObject = Reader::read($calendarData);
+		/** @var VEvent $vEvent */
+		$vEvent = $vObject->{'VEVENT'};
+
+		// First, we check if the correct method is passed to us
+		if (strcasecmp('CANCEL', $vEvent->{'METHOD'}->getValue()) !== 0) {
+			$this->logger->warning('Wrong method provided for processing');
+			return false;
+		}
+
+		$attendee = substr($vEvent->{'ATTENDEE'}->getValue(), 7);
+		if (strcasecmp($recipient, $attendee) !== 0) {
+			$this->logger->warning('Recipient must be an ATTENDEE of this event');
+			return false;
+		}
+
+		// Thirdly, we need to compare the email address the CANCEL is coming from (in Mail)
+		// to the email address in the ORGANIZER.
+		// We don't want to accept a CANCEL request from just anyone
+		$organizer = substr($vEvent->{'ORGANIZER'}->getValue(), 7);
+		if (strcasecmp($sender, $organizer) !== 0) {
+			$this->logger->warning('Sender must be the ORGANIZER of this event');
+			return false;
+		}
+
+		//check if the event is in the future
+		/** @var DateTime $eventTime */
+		$eventTime = $vEvent->{'DTSTART'};
+		if ($eventTime->getDateTime()->getTimeStamp() < $this->timeFactory->getDateTime()->getTimestamp()) { // this might cause issues with recurrences
+			$this->logger->warning('Only events in the future are processed');
+			return false;
+		}
+
+		// Look for the original calendar the event was set in
+		$query = $this->newQuery($principalUri);
+		$query->addSearchProperty('uid');
+		$query->setSearchPattern($vEvent->{'UID'}->getValue());
+		$query->setLimit(1);
+
+		$original = $this->searchForPrincipal($query);
+
+		if (empty($original)) {
+			$this->logger->info('Event not found in calendar for principal ' . $principalUri . 'and UID' . $vEvent->{'UID'}->getValue());
+			return false;
+		}
+
+		$originalVevent = Reader::read($original[0]['calendardata']);
+
+		// check if the organizer in the attached calendar data is the one in the original event
+		if (strcasecmp($originalVevent->{'ORGANIZER'}->getValue(), $vEvent->{'ORGANIZER'}->getValue()) !== 0) {
+			$this->logger->warning('Invalid ORGANIZER passed for CANCEL');
+			return false;
+		}
+
+		// we need to compare the email address the CANCEL is sent to (in Mail)
+		// to the email address in the ATTENDEE as specified in the RFC
+		$attendee = substr($vEvent->{'ATTENDEE'}->getValue(), 7);
+
+		if (strcasecmp($sender, $attendee) !== 0) {
+			$this->logger->warning('Party crashing is not supported for iMIP replies');
+			return false;
+		}
+
+		if (!isset($originalVevent->ATTENDEE)) {
+			$this->logger->warning('No attendees set in original VEVENT.');
+			return false;
+		}
+
+		$calendar = current(array_filter($this->getCalendarsForPrincipal($principalUri), function ($calendar) use ($original) {
+			return $calendar->getKey() === $original['calendarid'];
+		}));
+
+		if (!$calendar) {
+			$this->logger->error('Could not find calendar to write REPLY to');
+			return false;
+		}
+
+		/** @var ICreateFromString $calendar */
+		$calendar = current(array_filter($this->getCalendarsForPrincipal($principalUri), function ($calendar) use ($original) {
+			return $calendar->getKey() === $original['calendarid'];
+		}));
+
+		if (!$calendar) {
+			return false;
+		}
+		// Check if this is a writable calendar
+		if (!($calendar instanceof ICreateFromString)) {
+			$this->logger->error('Could not update calendar for iMIP processing as calendar' . $calendar->getUri() . 'is not writable');
+			return false;
+		}
+
+		$iTipMessage = new Message();
+		$iTipMessage->recipient = $vEvent->{'ORGANIZER'}->getValue();
+		$iTipMessage->uid = $vEvent->{'UID'}->getValue();
+		$iTipMessage->component = 'VEVENT';
+		$iTipMessage->method = 'REPLY';
+		$iTipMessage->sequence = $vEvent->{'SEQUENCE'}->getValue() ?? 0;
+		$iTipMessage->sender = $vEvent->{'ATTENDEE'}->getValue();
+		$iTipMessage->message = $vEvent;
+		try {
+			$calendar->handleIMipMessage($iTipMessage); // sabre will handle the scheduling behind the scenes
+			return true;
+		} catch (CalendarException $e) {
+			$this->logger->error('Could not update calendar for iMIP processing', ['exception' => $e]);
+			return false;
+		}
 	}
 }
