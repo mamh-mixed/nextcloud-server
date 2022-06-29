@@ -13,11 +13,11 @@ use OC\App\InfoParser;
 use Test\TestCase;
 
 class InfoParserTest extends TestCase {
-	/** @var OC\Cache\CappedMemoryCache */
+	/** @var OCP\Cache\CappedMemoryCache */
 	private static $cache;
 
 	public static function setUpBeforeClass(): void {
-		self::$cache = new OC\Cache\CappedMemoryCache();
+		self::$cache = new OCP\Cache\CappedMemoryCache();
 	}
 
 
