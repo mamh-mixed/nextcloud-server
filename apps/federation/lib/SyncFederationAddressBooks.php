@@ -29,6 +29,7 @@ use OC\OCS\DiscoveryService;
 use OCA\DAV\CardDAV\SyncService;
 use OCP\AppFramework\Http;
 use OCP\OCS\IDiscoveryService;
+use Psr\Log\LoggerInterface;
 
 class SyncFederationAddressBooks {
 
@@ -41,6 +42,9 @@ class SyncFederationAddressBooks {
 	/** @var  DiscoveryService */
 	private $ocsDiscoveryService;
 
+	/** @var LoggerInterface */
+	private $logger;
+
 	/**
 	 * @param DbHandler $dbHandler
 	 * @param SyncService $syncService
@@ -48,11 +52,13 @@ class SyncFederationAddressBooks {
 	 */
 	public function __construct(DbHandler $dbHandler,
 								SyncService $syncService,
-								IDiscoveryService $ocsDiscoveryService
+								IDiscoveryService $ocsDiscoveryService,
+								LoggerInterface $logger,
 	) {
 		$this->syncService = $syncService;
 		$this->dbHandler = $dbHandler;
 		$this->ocsDiscoveryService = $ocsDiscoveryService;
+		$this->logger = $logger;
 	}
 
 	/**
@@ -71,6 +77,7 @@ class SyncFederationAddressBooks {
 			$addressBookUrl = isset($endPoints['system-address-book']) ? trim($endPoints['system-address-book'], '/') : 'remote.php/dav/addressbooks/system/system/system';
 
 			if (is_null($sharedSecret)) {
+				$this->logger->error('Shared secret is null');
 				continue;
 			}
 			$targetBookId = $trustedServer['url_hash'];
@@ -82,10 +89,16 @@ class SyncFederationAddressBooks {
 				$newToken = $this->syncService->syncRemoteAddressBook($url, $cardDavUser, $addressBookUrl, $sharedSecret, $syncToken, $targetBookId, $targetPrincipal, $targetBookProperties);
 				if ($newToken !== $syncToken) {
 					$this->dbHandler->setServerStatus($url, TrustedServers::STATUS_OK, $newToken);
+				} else {
+					$this->logger->info('Token unchanged from previous sync.');
 				}
 			} catch (\Exception $ex) {
 				if ($ex->getCode() === Http::STATUS_UNAUTHORIZED) {
 					$this->dbHandler->setServerStatus($url, TrustedServers::STATUS_ACCESS_REVOKED);
+					$this->logger->error('Server sync failed because of revoked access.');
+				} else {
+					$this->dbHandler->setServerStatus($url, TrustedServers::STATUS_FAILURE);
+					$this->logger->error('Server sync failed.');
 				}
 				$callback($url, $ex);
 			}
