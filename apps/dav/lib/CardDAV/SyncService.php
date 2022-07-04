@@ -100,8 +100,9 @@ class SyncService {
 				// remote server revoked access to the address book, remove it
 				$this->backend->deleteAddressBook($addressBookId);
 				$this->logger->error('Authorization failed, remove address book: ' . $url, ['app' => 'dav']);
+			} else {
+				$this->logger->error('Client exception:', ['app' => 'dav', 'exception' => $ex]);
 			}
-			$this->logger->error('Client exception:', ['app' => 'dav', 'exception' => $ex]);
 			throw $ex;
 		}
 
