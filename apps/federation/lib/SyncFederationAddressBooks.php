@@ -45,15 +45,10 @@ class SyncFederationAddressBooks {
 	/** @var LoggerInterface */
 	private $logger;
 
-	/**
-	 * @param DbHandler $dbHandler
-	 * @param SyncService $syncService
-	 * @param IDiscoveryService $ocsDiscoveryService
-	 */
 	public function __construct(DbHandler $dbHandler,
 								SyncService $syncService,
 								IDiscoveryService $ocsDiscoveryService,
-								LoggerInterface $logger,
+								LoggerInterface $logger
 	) {
 		$this->syncService = $syncService;
 		$this->dbHandler = $dbHandler;
