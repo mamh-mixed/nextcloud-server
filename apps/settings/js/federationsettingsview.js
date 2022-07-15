@@ -129,7 +129,8 @@
 				if (
 					field === 'avatar' ||
 					field === 'email' ||
-					field === 'displayname'
+					field === 'displayname' ||
+					field === 'twitter'
 				) {
 					return;
 				}
