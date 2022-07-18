@@ -38,7 +38,7 @@ use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IRequest;
-use OCP\IURLGenerator;
+use OCP\IUrlGenerator;
 use OCP\Security\ISecureRandom;
 use Test\TestCase;
 
@@ -56,7 +56,7 @@ class DirectControllerTest extends TestCase {
 	/** @var ITimeFactory|\PHPUnit\Framework\MockObject\MockObject */
 	private $timeFactory;
 
-	/** @var IURLGenerator|\PHPUnit\Framework\MockObject\MockObject */
+	/** @var IUrlGenerator|\PHPUnit\Framework\MockObject\MockObject */
 	private $urlGenerator;
 
 	/** @var DirectController */
@@ -69,7 +69,7 @@ class DirectControllerTest extends TestCase {
 		$this->directMapper = $this->createMock(DirectMapper::class);
 		$this->random = $this->createMock(ISecureRandom::class);
 		$this->timeFactory = $this->createMock(ITimeFactory::class);
-		$this->urlGenerator = $this->createMock(IURLGenerator::class);
+		$this->urlGenerator = $this->createMock(IUrlGenerator::class);
 
 		$this->controller = new DirectController(
 			'dav',
@@ -83,7 +83,7 @@ class DirectControllerTest extends TestCase {
 		);
 	}
 
-	public function testGetUrlNonExistingFileId() {
+	public function testGetUrlNonExistingFileId(): void {
 		$userFolder = $this->createMock(Folder::class);
 		$this->rootFolder->method('getUserFolder')
 			->with('awesomeUser')
