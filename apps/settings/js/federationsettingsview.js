@@ -130,7 +130,8 @@
 					field === 'avatar' ||
 					field === 'email' ||
 					field === 'displayname' ||
-					field === 'twitter'
+					field === 'twitter' ||
+					field === 'address'
 				) {
 					return;
 				}
