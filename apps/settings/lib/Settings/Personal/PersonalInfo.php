@@ -147,8 +147,6 @@ class PersonalInfo implements ISettings {
 			'federationEnabled' => $federationEnabled,
 			'lookupServerUploadEnabled' => $lookupServerUploadEnabled,
 			'avatarScope' => $account->getProperty(IAccountManager::PROPERTY_AVATAR)->getScope(),
-			'phone' => $account->getProperty(IAccountManager::PROPERTY_PHONE)->getValue(),
-			'phoneScope' => $account->getProperty(IAccountManager::PROPERTY_PHONE)->getScope(),
 			'address' => $account->getProperty(IAccountManager::PROPERTY_ADDRESS)->getValue(),
 			'addressScope' => $account->getProperty(IAccountManager::PROPERTY_ADDRESS)->getScope(),
 			'website' => $account->getProperty(IAccountManager::PROPERTY_WEBSITE)->getValue(),
@@ -162,6 +160,7 @@ class PersonalInfo implements ISettings {
 		$personalInfoParameters = [
 			'userId' => $uid,
 			'displayName' => $this->getProperty($account, IAccountManager::PROPERTY_DISPLAYNAME),
+			'phone' => $this->getProperty($account, IAccountManager::PROPERTY_PHONE),
 			'twitter' => $this->getProperty($account, IAccountManager::PROPERTY_TWITTER),
 			'emailMap' => $this->getEmailMap($account),
 			'languageMap' => $this->getLanguageMap($user),
