@@ -151,9 +151,6 @@ class PersonalInfo implements ISettings {
 			'phoneScope' => $account->getProperty(IAccountManager::PROPERTY_PHONE)->getScope(),
 			'address' => $account->getProperty(IAccountManager::PROPERTY_ADDRESS)->getValue(),
 			'addressScope' => $account->getProperty(IAccountManager::PROPERTY_ADDRESS)->getScope(),
-			'website' => $account->getProperty(IAccountManager::PROPERTY_WEBSITE)->getValue(),
-			'websiteScope' => $account->getProperty(IAccountManager::PROPERTY_WEBSITE)->getScope(),
-			'websiteVerification' => $account->getProperty(IAccountManager::PROPERTY_WEBSITE)->getVerified(),
 			'groups' => $this->getGroups($user),
 			'isFairUseOfFreePushService' => $this->isFairUseOfFreePushService(),
 			'profileEnabledGlobally' => $this->profileManager->isProfileEnabled(),
@@ -162,6 +159,7 @@ class PersonalInfo implements ISettings {
 		$personalInfoParameters = [
 			'userId' => $uid,
 			'displayName' => $this->getProperty($account, IAccountManager::PROPERTY_DISPLAYNAME),
+			'website' => $this->getProperty($account, IAccountManager::PROPERTY_WEBSITE),
 			'twitter' => $this->getProperty($account, IAccountManager::PROPERTY_TWITTER),
 			'emailMap' => $this->getEmailMap($account),
 			'languageMap' => $this->getLanguageMap($user),
