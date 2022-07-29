@@ -178,5 +178,5 @@ interface IManager {
 	 * @param string $calendarData
 	 * @return mixed
 	 */
-	public function handleIMipCancel(string $principalUri, string $sender, string $recipient, string $calendarData): bool;
+	public function handleIMipCancel(string $principalUri, string $sender, ?string $replyTo, string $recipient, string $calendarData): bool;
 }

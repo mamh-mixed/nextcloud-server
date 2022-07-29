@@ -366,13 +366,13 @@ class Manager implements IManager {
 	}
 
 	// CANCEL: the event has to be updated in the ATTENDEEs calendar
-	public function handleIMipCancel(string $principalUri, string $sender, string $recipient, string $calendarData): bool {
+	public function handleIMipCancel(string $principalUri, string $sender, ?string $replyTo, string $recipient, string $calendarData): bool {
 		$vObject = Reader::read($calendarData);
 		/** @var VEvent $vEvent */
 		$vEvent = $vObject->{'VEVENT'};
 
 		// First, we check if the correct method is passed to us
-		if (strcasecmp('CANCEL', $vEvent->{'METHOD'}->getValue()) !== 0) {
+		if (strcasecmp('CANCEL', $vObject->{'METHOD'}->getValue()) !== 0) {
 			$this->logger->warning('Wrong method provided for processing');
 			return false;
 		}
@@ -384,10 +384,11 @@ class Manager implements IManager {
 		}
 
 		// Thirdly, we need to compare the email address the CANCEL is coming from (in Mail)
+		// or the Reply- To Address submitted with the CANCEL email
 		// to the email address in the ORGANIZER.
 		// We don't want to accept a CANCEL request from just anyone
 		$organizer = substr($vEvent->{'ORGANIZER'}->getValue(), 7);
-		if (strcasecmp($sender, $organizer) !== 0) {
+		if (strcasecmp($sender, $organizer) !== 0 || strcasecmp($replyTo, $organizer) !== 0) {
 			$this->logger->warning('Sender must be the ORGANIZER of this event');
 			return false;
 		}
@@ -410,7 +411,9 @@ class Manager implements IManager {
 
 		if (empty($original)) {
 			$this->logger->info('Event not found in calendar for principal ' . $principalUri . 'and UID' . $vEvent->{'UID'}->getValue());
-			return false;
+			// this is a safe operation
+			// we can ignore objects that are unavailable
+			return true;
 		}
 
 		$originalVevent = Reader::read($original[0]['calendardata']);
@@ -421,19 +424,7 @@ class Manager implements IManager {
 			return false;
 		}
 
-		// we need to compare the email address the CANCEL is sent to (in Mail)
-		// to the email address in the ATTENDEE as specified in the RFC
-		$attendee = substr($vEvent->{'ATTENDEE'}->getValue(), 7);
-
-		if (strcasecmp($sender, $attendee) !== 0) {
-			$this->logger->warning('Party crashing is not supported for iMIP replies');
-			return false;
-		}
-
-		if (!isset($originalVevent->ATTENDEE)) {
-			$this->logger->warning('No attendees set in original VEVENT.');
-			return false;
-		}
+		// we don't need to check ATTENDEEs - sabre will ignore the event if it wasnt't in the calendar to begin with
 
 		$calendar = current(array_filter($this->getCalendarsForPrincipal($principalUri), function ($calendar) use ($original) {
 			return $calendar->getKey() === $original['calendarid'];
@@ -444,14 +435,6 @@ class Manager implements IManager {
 			return false;
 		}
 
-		/** @var ICreateFromString $calendar */
-		$calendar = current(array_filter($this->getCalendarsForPrincipal($principalUri), function ($calendar) use ($original) {
-			return $calendar->getKey() === $original['calendarid'];
-		}));
-
-		if (!$calendar) {
-			return false;
-		}
 		// Check if this is a writable calendar
 		if (!($calendar instanceof ICreateFromString)) {
 			$this->logger->error('Could not update calendar for iMIP processing as calendar' . $calendar->getUri() . 'is not writable');
@@ -459,15 +442,13 @@ class Manager implements IManager {
 		}
 
 		$iTipMessage = new Message();
-		$iTipMessage->recipient = $vEvent->{'ORGANIZER'}->getValue();
 		$iTipMessage->uid = $vEvent->{'UID'}->getValue();
 		$iTipMessage->component = 'VEVENT';
-		$iTipMessage->method = 'REPLY';
+		$iTipMessage->method = 'CANCEL';
 		$iTipMessage->sequence = $vEvent->{'SEQUENCE'}->getValue() ?? 0;
-		$iTipMessage->sender = $vEvent->{'ATTENDEE'}->getValue();
 		$iTipMessage->message = $vEvent;
 		try {
-			$calendar->handleIMipMessage($iTipMessage); // sabre will handle the scheduling behind the scenes
+			$calendar->handleIMipMessage($iTipMessage);
 			return true;
 		} catch (CalendarException $e) {
 			$this->logger->error('Could not update calendar for iMIP processing', ['exception' => $e]);
