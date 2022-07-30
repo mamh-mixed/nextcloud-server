@@ -47,6 +47,7 @@ script('settings', [
 							data-lookup-server-upload-enabled="<?php p($_['lookupServerUploadEnabled'] ? 'true' : 'false') ?>">
 	<h2 class="hidden-visually"><?php p($l->t('Personal info')); ?></h2>
 	<div id="personal-settings-avatar-container" class="personal-settings-container">
+		<div id="vue-avatar-section"></div>
 		<div>
 			<form id="avatarform" class="section" method="post" action="<?php p(\OC::$server->getURLGenerator()->linkToRoute('core.avatar.postAvatar')); ?>">
 				<h3>
