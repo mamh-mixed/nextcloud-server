@@ -1,10 +1,7 @@
-<?php
 /**
- * @copyright Copyright (c) 2017 Arthur Schiwon <blizzz@arthur-schiwon.de>
+ * @copyright 2022 Carl Schwan <carl@carlschwan.eu>
  *
- * @author Arthur Schiwon <blizzz@arthur-schiwon.de>
- *
- * @license GNU AGPL version 3 or any later version
+ * @license AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -17,19 +14,23 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-script('settings', [
-	'settings',
-	'templates',
-	'vue-settings-personal-security',
-]);
+import Vue from 'vue'
 
-if ($_['passwordChangeSupported']) {
-	\OCP\Util::addScript('settings', 'vue-settings-personal-password');
-}
+import PasswordSection from './components/PasswordSection'
+import { translate as t, translatePlural as n } from '@nextcloud/l10n'
 
-?>
-<div id="security-password"></div>
+// eslint-disable-next-line camelcase
+__webpack_nonce__ = btoa(OC.requestToken)
+
+Vue.prototype.t = t
+Vue.prototype.n = n
+
+export default new Vue({
+    el: '#security-password',
+    name: 'PasswordSection',
+    render: h => h(PasswordSection),
+})
