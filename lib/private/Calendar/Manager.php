@@ -358,11 +358,11 @@ class Manager implements IManager {
 		$iTipMessage->message = $vEvent;
 		try {
 			$calendar->handleIMipMessage($iTipMessage); // sabre will handle the scheduling behind the scenes
-			return true;
 		} catch (CalendarException $e) {
 			$this->logger->error('Could not update calendar for iMIP processing', ['exception' => $e]);
 			return false;
 		}
+		return true;
 	}
 
 	// CANCEL: the event has to be updated in the ATTENDEEs calendar
@@ -402,13 +402,7 @@ class Manager implements IManager {
 		}
 
 		// Look for the original calendar the event was set in
-		$query = $this->newQuery($principalUri);
-		$query->addSearchProperty('uid');
-		$query->setSearchPattern($vEvent->{'UID'}->getValue());
-		$query->setLimit(1);
-
-		$original = $this->searchForPrincipal($query);
-
+		$original = $this->getCalendarHome($principalUri)->searchPrincipalByUid($principalUri, $vEvent->{'UID'}->getValue());
 		if (empty($original)) {
 			$this->logger->info('Event not found in calendar for principal ' . $principalUri . 'and UID' . $vEvent->{'UID'}->getValue());
 			// this is a safe operation
@@ -416,15 +410,16 @@ class Manager implements IManager {
 			return true;
 		}
 
-		$originalVevent = Reader::read($original[0]['calendardata']);
-
+		$originalVObject = Reader::read($original['calendardata']);
+		/** @var VEvent $originalVevent */
+		$originalVevent = $originalVObject->{'VEVENT'};
 		// check if the organizer in the attached calendar data is the one in the original event
 		if (strcasecmp($originalVevent->{'ORGANIZER'}->getValue(), $vEvent->{'ORGANIZER'}->getValue()) !== 0) {
 			$this->logger->warning('Invalid ORGANIZER passed for CANCEL');
 			return false;
 		}
 
-		// we don't need to check ATTENDEEs - sabre will ignore the event if it wasnt't in the calendar to begin with
+		// we don't need to check ATTENDEEs - sabre will ignore the event if it wasn't in the calendar to begin with
 
 		$calendar = current(array_filter($this->getCalendarsForPrincipal($principalUri), function ($calendar) use ($original) {
 			return $calendar->getKey() === $original['calendarid'];
@@ -443,6 +438,7 @@ class Manager implements IManager {
 
 		$iTipMessage = new Message();
 		$iTipMessage->uid = $vEvent->{'UID'}->getValue();
+		$iTipMessage->recipient = $vEvent->{'ATTENDEE'}->getValue();
 		$iTipMessage->component = 'VEVENT';
 		$iTipMessage->method = 'CANCEL';
 		$iTipMessage->sequence = $vEvent->{'SEQUENCE'}->getValue() ?? 0;

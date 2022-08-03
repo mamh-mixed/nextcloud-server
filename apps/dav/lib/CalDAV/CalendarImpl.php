@@ -180,6 +180,11 @@ class CalendarImpl implements ICreateFromString {
 		}
 	}
 
+	/**
+	 * @param Message $iTipMessage
+	 * @return void
+	 * @throws CalendarException
+	 */
 	public function handleIMipMessage(Message $iTipMessage): void {
 		$server = new InvitationResponseServer(false);
 
@@ -196,6 +201,7 @@ class CalendarImpl implements ICreateFromString {
 		// Force calendar change URI
 		/** @var Schedule\Plugin $schedulingPlugin */
 		$schedulingPlugin = $server->server->getPlugin('caldav-schedule');
+		// Let sabre handle the rest
 		$schedulingPlugin->scheduleLocalDelivery($iTipMessage);
 	}
 }
