@@ -188,7 +188,7 @@ class Manager implements IManager {
 	/**
 	 * @param string $principalUri
 	 * @param array $calendarUris
-	 * @return array|ICreateFromString[]
+	 * @return ICreateFromString[]
 	 */
 	public function getCalendarsForPrincipal(string $principalUri, array $calendarUris = []): array {
 		$context = $this->coordinator->getRegistrationContext();
@@ -231,6 +231,7 @@ class Manager implements IManager {
 			}
 			return $provider->provideCalendarHome($principalUri);
 		}
+		return null;
 	}
 
 	public function searchForPrincipal(ICalendarQuery $query): array {
@@ -355,7 +356,7 @@ class Manager implements IManager {
 		$iTipMessage->method = 'REPLY';
 		$iTipMessage->sequence = $vEvent->{'SEQUENCE'}->getValue() ?? 0;
 		$iTipMessage->sender = $vEvent->{'ATTENDEE'}->getValue();
-		$iTipMessage->message = $vEvent;
+		$iTipMessage->message = $vObject;
 		try {
 			$calendar->handleIMipMessage($iTipMessage); // sabre will handle the scheduling behind the scenes
 		} catch (CalendarException $e) {
@@ -442,7 +443,7 @@ class Manager implements IManager {
 		$iTipMessage->component = 'VEVENT';
 		$iTipMessage->method = 'CANCEL';
 		$iTipMessage->sequence = $vEvent->{'SEQUENCE'}->getValue() ?? 0;
-		$iTipMessage->message = $vEvent;
+		$iTipMessage->message = $vObject;
 		try {
 			$calendar->handleIMipMessage($iTipMessage);
 			return true;

@@ -2167,48 +2167,9 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 
 	/**
 	 * Searches through all of a users calendars and calendar objects to find
-	 * an object with a specific UID.
-	 *
-	 * This method should return the path to this object, relative to the
-	 * calendar home, so this path usually only contains two parts:
-	 *
-	 * calendarpath/objectpath.ics
-	 *
-	 * If the uid is not found, return null.
-	 *
-	 * This method should only consider * objects that the principal owns, so
-	 * any calendars owned by other principals that also appear in this
-	 * collection should be ignored.
-	 *
-	 * @param string $principalUri
-	 * @param string $uid
-	 * @return string|null
-	 */
-	public function searchByUid(string $principalUri, string $uid): ?string {
-		$query = $this->db->getQueryBuilder();
-		$query->selectAlias('c.uri', 'calendaruri')->selectAlias('co.uri', 'objecturi')
-			->from('calendarobjects', 'co')
-			->leftJoin('co', 'calendars', 'c', $query->expr()->eq('co.calendarid', 'c.id'))
-			->where($query->expr()->eq('c.principaluri', $query->createNamedParameter($principalUri)))
-			->andWhere($query->expr()->eq('co.uid', $query->createNamedParameter($uid)))
-			->andWhere($query->expr()->isNull('co.deleted_at'));
-		$stmt = $query->executeQuery();
-		$row = $stmt->fetch();
-		$stmt->closeCursor();
-		if ($row) {
-			return $this->readBlob($row['calendardata']);
-		}
-
-		return null;
-	}
-
-	/**
-	 * Searches through all of a users calendars and calendar objects to find
 	 * an object with a specific UID and will return the complete object
 	 *
-	 * @param string $principalUri
-	 * @param string $uid
-	 * @return string|null
+	 * @throws Exception
 	 */
 	public function searchPrincipalByUid(string $principalUri, string $uid): ?array {
 		$query = $this->db->getQueryBuilder();

@@ -211,6 +211,9 @@ class CalendarHome extends \Sabre\CalDAV\CalendarHome {
 	}
 
 	public function searchPrincipalByUid(string $principalUri, string $uid): ?array {
-		return $this->caldavBackend->searchPrincipalByUid($principalUri, $uid);
+		if($this->caldavBackend instanceof CalDavBackend) {
+			return $this->caldavBackend->searchPrincipalByUid($principalUri, $uid);
+		}
+		return null;
 	}
 }
