@@ -128,6 +128,9 @@ class AppManager implements IAppManager {
 
 			$alwaysEnabledApps = $this->getAlwaysEnabledApps();
 			foreach ($alwaysEnabledApps as $appId) {
+				if (!isset($values[$appId])) {
+					continue;
+				}
 				$values[$appId] = 'yes';
 			}
 
