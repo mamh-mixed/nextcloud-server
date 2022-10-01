@@ -37,6 +37,7 @@ trait CommonThemeTrait {
 	protected function generatePrimaryVariables(string $colorMainBackground, string $colorMainText): array {
 		$colorPrimaryLight = $this->util->mix($this->primaryColor, $colorMainBackground, -80);
 		$colorPrimaryElement = $this->util->elementColor($this->primaryColor);
+		$colorPrimaryElementDefault = $this->util->elementColor($this->defaultPrimaryColor);
 		$colorPrimaryElementLight = $this->util->mix($colorPrimaryElement, $colorMainBackground, -80);
 
 		// primary related colours
@@ -52,6 +53,7 @@ trait CommonThemeTrait {
 
 			// used for buttons, inputs...
 			'--color-primary-element' => $colorPrimaryElement,
+			'--color-primary-element-default-hover' => $this->util->mix($colorPrimaryElementDefault, $colorMainBackground, 60),
 			'--color-primary-element-text' => $this->util->invertTextColor($colorPrimaryElement) ? '#000000' : '#ffffff',
 			'--color-primary-element-hover' => $this->util->mix($colorPrimaryElement, $colorMainBackground, 60),
 			'--color-primary-element-light' => $colorPrimaryElementLight,
