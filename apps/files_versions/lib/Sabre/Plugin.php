@@ -94,6 +94,7 @@ class Plugin extends ServerPlugin {
 		if ($node instanceof VersionFile) {
 			$propFind->handle(self::VERSION_LABEL, fn() => $node->getLabel());
 			$propFind->handle(FilesPlugin::HAS_PREVIEW_PROPERTYNAME, fn () => $this->previewManager->isMimeSupported($node->getContentType()));
+			// $propFind->handle(FilesPlugin::INTERNAL_FILEID_PROPERTYNAME, fn () => $node->get);
 		}
 	}
 
