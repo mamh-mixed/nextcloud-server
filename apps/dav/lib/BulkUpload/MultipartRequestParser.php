@@ -208,7 +208,7 @@ class MultipartRequestParser {
 		$computedMd5 = $this->computeMd5Hash($length);
 
 		if ($md5 !== $computedMd5) {
-			throw new BadRequest("Computed md5 hash is incorrect.");
+			throw new BadRequest("Computed md5 hash is incorrect. Expected: " . $md5 . " computed " . $computedMd5);
 		}
 
 		if ($length === 0) {
