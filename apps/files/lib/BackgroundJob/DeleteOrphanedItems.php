@@ -27,34 +27,28 @@ namespace OCA\Files\BackgroundJob;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\IDBConnection;
+use Psr\Log\LoggerInterface;
 
 /**
  * Delete all share entries that have no matching entries in the file cache table.
  */
 class DeleteOrphanedItems extends TimedJob {
 	public const CHUNK_SIZE = 200;
-
-	/** @var \OCP\IDBConnection */
-	protected $connection;
-
-	/** @var \OCP\ILogger */
-	protected $logger;
-
-	/**
-	 * Default interval in minutes
-	 *
-	 * @var int $defaultIntervalMin
-	 **/
+	protected IDBConnection $connection;
+	protected LoggerInterface $logger;
 	protected $defaultIntervalMin = 60;
 
 	/**
 	 * sets the correct interval for this timed job
 	 */
-	public function __construct(ITimeFactory $time) {
+	public function __construct(
+		ITimeFactory $time,
+	) {
 		parent::__construct($time);
 		$this->interval = $this->defaultIntervalMin * 60;
-		$this->connection = \OC::$server->getDatabaseConnection();
-		$this->logger = \OC::$server->getLogger();
+		$this->connection = \OC::$server->get(IDBConnection::class);
+		$this->logger = \OC::$server->get(LoggerInterface::class);
 	}
 
 	/**
