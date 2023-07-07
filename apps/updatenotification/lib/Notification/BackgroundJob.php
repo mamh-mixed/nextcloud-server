@@ -35,49 +35,30 @@ use OCP\Http\Client\IClientService;
 use OCP\IConfig;
 use OCP\IGroup;
 use OCP\IGroupManager;
+use OCP\IUserManager;
 use OCP\Notification\IManager;
+use OCP\Support\Subscription\IRegistry;
 
 class BackgroundJob extends TimedJob {
 	protected $connectionNotifications = [3, 7, 14, 30];
 
-	/** @var IConfig */
-	protected $config;
-
-	/** @var IManager */
-	protected $notificationManager;
-
-	/** @var IGroupManager */
-	protected $groupManager;
-
-	/** @var IAppManager */
-	protected $appManager;
-
-	/** @var IClientService */
-	protected $client;
-
-	/** @var Installer */
-	protected $installer;
-
 	/** @var string[] */
 	protected $users;
 
-	public function __construct(ITimeFactory $timeFactory,
-								IConfig $config,
-								IManager $notificationManager,
-								IGroupManager $groupManager,
-								IAppManager $appManager,
-								IClientService $client,
-								Installer $installer) {
+	public function __construct(
+		ITimeFactory $timeFactory,
+		protected IConfig $config,
+		protected IManager $notificationManager,
+		protected IUserManager $userManager,
+		protected IGroupManager $groupManager,
+		protected IAppManager $appManager,
+		protected IClientService $client,
+		protected Installer $installer,
+		protected IRegistry $subscriptionRegistry,
+	) {
 		parent::__construct($timeFactory);
 		// Run once a day
 		$this->setInterval(60 * 60 * 24);
-
-		$this->config = $config;
-		$this->notificationManager = $notificationManager;
-		$this->groupManager = $groupManager;
-		$this->appManager = $appManager;
-		$this->client = $client;
-		$this->installer = $installer;
 	}
 
 	protected function run($argument) {
@@ -264,7 +245,9 @@ class BackgroundJob extends TimedJob {
 	protected function createVersionCheck(): VersionCheck {
 		return new VersionCheck(
 			$this->client,
-			$this->config
+			$this->config,
+			$this->userManager,
+			$this->subscriptionRegistry,
 		);
 	}
 

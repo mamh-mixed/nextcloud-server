@@ -37,6 +37,7 @@ use OCP\IConfig;
 use OCP\IGroup;
 use OCP\IGroupManager;
 use OCP\IUser;
+use OCP\IUserManager;
 use OCP\Notification\IManager;
 use OCP\Notification\INotification;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -63,6 +64,7 @@ class BackgroundJobTest extends TestCase {
 
 		$this->config = $this->createMock(IConfig::class);
 		$this->notificationManager = $this->createMock(IManager::class);
+		$this->userManager = $this->createMock(IUserManager::class);
 		$this->groupManager = $this->createMock(IGroupManager::class);
 		$this->appManager = $this->createMock(IAppManager::class);
 		$this->client = $this->createMock(IClientService::class);
@@ -80,6 +82,7 @@ class BackgroundJobTest extends TestCase {
 				$this->timeFactory,
 				$this->config,
 				$this->notificationManager,
+				$this->userManager,
 				$this->groupManager,
 				$this->appManager,
 				$this->client,
@@ -92,6 +95,7 @@ class BackgroundJobTest extends TestCase {
 					$this->timeFactory,
 					$this->config,
 					$this->notificationManager,
+					$this->userManager,
 					$this->groupManager,
 					$this->appManager,
 					$this->client,
