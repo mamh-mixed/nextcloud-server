@@ -54,12 +54,12 @@ class ReferenceManager implements IReferenceManager {
 	private IUserSession $userSession;
 
 	public function __construct(LinkReferenceProvider $linkReferenceProvider,
-								ICacheFactory $cacheFactory,
-								Coordinator $coordinator,
-								ContainerInterface $container,
-								LoggerInterface $logger,
-								IConfig $config,
-								IUserSession $userSession) {
+		ICacheFactory $cacheFactory,
+		Coordinator $coordinator,
+		ContainerInterface $container,
+		LoggerInterface $logger,
+		IConfig $config,
+		IUserSession $userSession) {
 		$this->linkReferenceProvider = $linkReferenceProvider;
 		$this->cache = $cacheFactory->createDistributed('reference');
 		$this->coordinator = $coordinator;
