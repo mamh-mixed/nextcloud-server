@@ -21,123 +21,149 @@
   -->
 
 <template>
-	<NcContent app-name="settings" :navigation-class="{ 'icon-loading': loadingAddGroup }">
-		<NcAppNavigation>
-			<NcAppNavigationNew button-id="new-user-button"
-				:text="t('settings','New user')"
-				button-class="icon-add"
-				@click="showNewUserMenu"
-				@keyup.enter="showNewUserMenu"
-				@keyup.space="showNewUserMenu" />
-			<template #list>
-				<NcAppNavigationNewItem id="addgroup"
-					ref="addGroup"
-					:edit-placeholder="t('settings', 'Enter group name')"
-					:editable="true"
-					:loading="loadingAddGroup"
-					:title="t('settings', 'Add group')"
-					@click="showAddGroupForm"
-					@new-item="createGroup">
-					<template #icon>
-						<Plus :size="20" />
-					</template>
-				</NcAppNavigationNewItem>
-				<NcAppNavigationItem id="everyone"
-					:exact="true"
-					:title="t('settings', 'Active users')"
-					:to="{ name: 'users' }"
-					icon="icon-contacts-dark">
-					<template #counter>
-						<NcCounterBubble :type="!selectedGroupDecoded ? 'highlighted' : undefined">
-							{{ userCount }}
-						</NcCounterBubble>
-					</template>
-				</NcAppNavigationItem>
-				<NcAppNavigationItem v-if="settings.isAdmin"
-					id="admin"
-					:exact="true"
-					:title="t('settings', 'Admins')"
-					:to="{ name: 'group', params: { selectedGroup: 'admin' } }"
-					icon="icon-user-admin">
-					<template v-if="adminGroupMenu.count > 0" #counter>
-						<NcCounterBubble :type="selectedGroupDecoded === 'admin' ? 'highlighted' : undefined">
-							{{ adminGroupMenu.count }}
-						</NcCounterBubble>
-					</template>
-				</NcAppNavigationItem>
+	<Fragment>
+		<NcContent app-name="settings" :navigation-class="{ 'icon-loading': loadingAddGroup }">
+			<NcAppNavigation>
+				<NcAppNavigationNew button-id="new-user-button"
+					:text="t('settings','New user')"
+					button-class="icon-add"
+					@click="showNewUserMenu"
+					@keyup.enter="showNewUserMenu"
+					@keyup.space="showNewUserMenu" />
 
-				<!-- Hide the disabled if none, if we don't have the data (-1) show it -->
-				<NcAppNavigationItem v-if="disabledGroupMenu.usercount > 0 || disabledGroupMenu.usercount === -1"
-					id="disabled"
-					:exact="true"
-					:title="t('settings', 'Disabled users')"
-					:to="{ name: 'group', params: { selectedGroup: 'disabled' } }"
-					icon="icon-disabled-users">
-					<template v-if="disabledGroupMenu.usercount > 0" #counter>
-						<NcCounterBubble :type="selectedGroupDecoded === 'disabled' ? 'highlighted' : undefined">
-							{{ disabledGroupMenu.usercount }}
-						</NcCounterBubble>
-					</template>
-				</NcAppNavigationItem>
+				<template #list>
+					<NcAppNavigationNewItem id="addgroup"
+						ref="addGroup"
+						:edit-placeholder="t('settings', 'Enter group name')"
+						:editable="true"
+						:loading="loadingAddGroup"
+						:title="t('settings', 'Add group')"
+						@click="showAddGroupForm"
+						@new-item="createGroup">
+						<template #icon>
+							<Plus :size="20" />
+						</template>
+					</NcAppNavigationNewItem>
+					<NcAppNavigationItem id="everyone"
+						:exact="true"
+						:title="t('settings', 'Active users')"
+						:to="{ name: 'users' }"
+						icon="icon-contacts-dark">
+						<template #counter>
+							<NcCounterBubble :type="!selectedGroupDecoded ? 'highlighted' : undefined">
+								{{ userCount }}
+							</NcCounterBubble>
+						</template>
+					</NcAppNavigationItem>
+					<NcAppNavigationItem v-if="settings.isAdmin"
+						id="admin"
+						:exact="true"
+						:title="t('settings', 'Admins')"
+						:to="{ name: 'group', params: { selectedGroup: 'admin' } }"
+						icon="icon-user-admin">
+						<template v-if="adminGroupMenu.count > 0" #counter>
+							<NcCounterBubble :type="selectedGroupDecoded === 'admin' ? 'highlighted' : undefined">
+								{{ adminGroupMenu.count }}
+							</NcCounterBubble>
+						</template>
+					</NcAppNavigationItem>
 
-				<NcAppNavigationCaption v-if="groupList.length > 0" :title="t('settings', 'Groups')" />
-				<GroupListItem v-for="group in groupList"
-					:id="group.id"
-					:key="group.id"
-					:active="selectedGroupDecoded === group.id"
-					:title="group.title"
-					:count="group.count" />
-			</template>
-			<template #footer>
-				<NcAppNavigationSettings exclude-click-outside-selectors=".vs__dropdown-menu">
-					<label for="default-quota-select">{{ t('settings', 'Default quota:') }}</label>
-					<NcSelect v-model="defaultQuota"
-						input-id="default-quota-select"
-						:taggable="true"
-						:options="quotaOptions"
-						:create-option="validateQuota"
-						:placeholder="t('settings', 'Select default quota')"
-						:clearable="false"
-						@option:selected="setDefaultQuota" />
-					<NcCheckboxRadioSwitch type="switch"
-						data-test="showLanguages"
-						:checked.sync="showLanguages">
-						{{ t('settings', 'Show languages') }}
-					</NcCheckboxRadioSwitch>
-					<NcCheckboxRadioSwitch type="switch"
-						data-test="showLastLogin"
-						:checked.sync="showLastLogin">
-						{{ t('settings', 'Show last login') }}
-					</NcCheckboxRadioSwitch>
-					<NcCheckboxRadioSwitch type="switch"
-						data-test="showUserBackend"
-						:checked.sync="showUserBackend">
-						{{ t('settings', 'Show user backend') }}
-					</NcCheckboxRadioSwitch>
-					<NcCheckboxRadioSwitch type="switch"
-						data-test="showStoragePath"
-						:checked.sync="showStoragePath">
-						{{ t('settings', 'Show storage path') }}
-					</NcCheckboxRadioSwitch>
-					<NcCheckboxRadioSwitch type="switch"
-						data-test="sendWelcomeMail"
-						:checked.sync="sendWelcomeMail"
-						:disabled="loadingSendMail">
-						{{ t('settings', 'Send email to new user') }}
-					</NcCheckboxRadioSwitch>
-				</NcAppNavigationSettings>
-			</template>
-		</NcAppNavigation>
-		<NcAppContent>
-			<UserList :selected-group="selectedGroupDecoded"
-				:external-actions="externalActions" />
-		</NcAppContent>
-	</NcContent>
+					<!-- Hide the disabled if none, if we don't have the data (-1) show it -->
+					<NcAppNavigationItem v-if="disabledGroupMenu.usercount > 0 || disabledGroupMenu.usercount === -1"
+						id="disabled"
+						:exact="true"
+						:title="t('settings', 'Disabled users')"
+						:to="{ name: 'group', params: { selectedGroup: 'disabled' } }"
+						icon="icon-disabled-users">
+						<template v-if="disabledGroupMenu.usercount > 0" #counter>
+							<NcCounterBubble :type="selectedGroupDecoded === 'disabled' ? 'highlighted' : undefined">
+								{{ disabledGroupMenu.usercount }}
+							</NcCounterBubble>
+						</template>
+					</NcAppNavigationItem>
+
+					<NcAppNavigationCaption v-if="groupList.length > 0" :title="t('settings', 'Groups')" />
+					<GroupListItem v-for="group in groupList"
+						:id="group.id"
+						:key="group.id"
+						:active="selectedGroupDecoded === group.id"
+						:title="group.title"
+						:count="group.count" />
+				</template>
+
+				<template #footer>
+					<ul class="app-navigation-entry__settings">
+						<NcAppNavigationItem :title="t('settings', 'Users settings')"
+							@click="isSettingsOpen = true">
+							<template #icon>
+								<Cog :size="20" />
+							</template>
+						</NcAppNavigationItem>
+					</ul>
+				</template>
+			</NcAppNavigation>
+
+			<NcAppContent>
+				<UserList :selected-group="selectedGroupDecoded"
+					:external-actions="externalActions" />
+			</NcAppContent>
+		</NcContent>
+
+		<NcAppSettingsDialog :open.sync="isSettingsOpen"
+			:show-navigation="true"
+			:title="t('settings', 'Users settings')">
+			<NcAppSettingsSection id="toggle-settings" :title="t('settings', 'Toggles')">
+				<NcCheckboxRadioSwitch type="switch"
+					data-test="showLanguages"
+					:checked.sync="showLanguages">
+					{{ t('settings', 'Show language') }}
+				</NcCheckboxRadioSwitch>
+				<NcCheckboxRadioSwitch type="switch"
+					data-test="showUserBackend"
+					:checked.sync="showUserBackend">
+					{{ t('settings', 'Show user backend') }}
+				</NcCheckboxRadioSwitch>
+				<NcCheckboxRadioSwitch type="switch"
+					data-test="showStoragePath"
+					:checked.sync="showStoragePath">
+					{{ t('settings', 'Show storage path') }}
+				</NcCheckboxRadioSwitch>
+				<NcCheckboxRadioSwitch type="switch"
+					data-test="showLastLogin"
+					:checked.sync="showLastLogin">
+					{{ t('settings', 'Show last login') }}
+				</NcCheckboxRadioSwitch>
+			</NcAppSettingsSection>
+
+			<NcAppSettingsSection id="email-settings" :title="t('settings', 'Send email')">
+				<NcCheckboxRadioSwitch type="switch"
+					data-test="sendWelcomeMail"
+					:checked.sync="sendWelcomeMail"
+					:disabled="loadingSendMail">
+					{{ t('settings', 'Send email to new users') }}
+				</NcCheckboxRadioSwitch>
+			</NcAppSettingsSection>
+
+			<NcAppSettingsSection id="default-settings" :title="t('settings', 'Defaults')">
+				<label for="default-quota-select">{{ t('settings', 'Default quota') }}</label>
+				<NcSelect v-model="defaultQuota"
+					input-id="default-quota-select"
+					placement="top"
+					:taggable="true"
+					:options="quotaOptions"
+					:create-option="validateQuota"
+					:placeholder="t('settings', 'Select default quota')"
+					:clearable="false"
+					@option:selected="setDefaultQuota" />
+			</NcAppSettingsSection>
+		</NcAppSettingsDialog>
+	</Fragment>
 </template>
 
 <script>
 import Vue from 'vue'
 import VueLocalStorage from 'vue-localstorage'
+import { Fragment } from 'vue-frag'
 
 import NcAppContent from '@nextcloud/vue/dist/Components/NcAppContent.js'
 import NcAppNavigation from '@nextcloud/vue/dist/Components/NcAppNavigation.js'
@@ -145,12 +171,14 @@ import NcAppNavigationCaption from '@nextcloud/vue/dist/Components/NcAppNavigati
 import NcAppNavigationItem from '@nextcloud/vue/dist/Components/NcAppNavigationItem.js'
 import NcAppNavigationNew from '@nextcloud/vue/dist/Components/NcAppNavigationNew.js'
 import NcAppNavigationNewItem from '@nextcloud/vue/dist/Components/NcAppNavigationNewItem.js'
-import NcAppNavigationSettings from '@nextcloud/vue/dist/Components/NcAppNavigationSettings.js'
+import NcAppSettingsDialog from '@nextcloud/vue/dist/Components/NcAppSettingsDialog.js'
+import NcAppSettingsSection from '@nextcloud/vue/dist/Components/NcAppSettingsSection.js'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/dist/Components/NcCheckboxRadioSwitch.js'
-import NcCounterBubble from '@nextcloud/vue/dist/Components/NcCounterBubble.js'
 import NcContent from '@nextcloud/vue/dist/Components/NcContent.js'
+import NcCounterBubble from '@nextcloud/vue/dist/Components/NcCounterBubble.js'
 import NcSelect from '@nextcloud/vue/dist/Components/NcSelect.js'
 
+import Cog from 'vue-material-design-icons/Cog.vue'
 import Plus from 'vue-material-design-icons/Plus.vue'
 
 import axios from '@nextcloud/axios'
@@ -165,6 +193,8 @@ Vue.use(VueLocalStorage)
 export default {
 	name: 'Users',
 	components: {
+		Cog,
+		Fragment,
 		GroupListItem,
 		NcAppContent,
 		NcAppNavigation,
@@ -172,10 +202,11 @@ export default {
 		NcAppNavigationItem,
 		NcAppNavigationNew,
 		NcAppNavigationNewItem,
-		NcAppNavigationSettings,
+		NcAppSettingsDialog,
+		NcAppSettingsSection,
 		NcCheckboxRadioSwitch,
-		NcCounterBubble,
 		NcContent,
+		NcCounterBubble,
 		NcSelect,
 		Plus,
 		UserList,
@@ -193,6 +224,7 @@ export default {
 			externalActions: [],
 			loadingAddGroup: false,
 			loadingSendMail: false,
+			isSettingsOpen: false,
 		}
 	},
 	computed: {
@@ -500,5 +532,18 @@ export default {
 // force hiding the editing action for the add group entry
 .app-navigation__list #addgroup::v-deep .app-navigation-entry__utils {
 	display: none;
+}
+
+.app-navigation-entry__settings {
+	height: auto !important;
+	overflow: hidden !important;
+	padding-top: 0 !important;
+	// Prevent shrinking or growing
+	flex: 0 0 auto;
+}
+
+label[for="default-quota-select"] {
+	display: block;
+	padding: 4px 0;
 }
 </style>
