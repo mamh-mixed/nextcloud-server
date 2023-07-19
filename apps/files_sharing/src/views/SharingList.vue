@@ -27,7 +27,8 @@
 			:file-info="fileInfo"
 			:share="share"
 			:is-unique="isUnique(share)"
-			@remove:share="removeShare" />
+			@remove:share="removeShare"
+			@open-sharing-details="onOpenSharingDetails(share)" />
 	</ul>
 </template>
 
@@ -82,6 +83,13 @@ export default {
 			const index = this.shares.findIndex(item => item === share)
 			// eslint-disable-next-line vue/no-mutating-props
 			this.shares.splice(index, 1)
+		},
+		onOpenSharingDetails(share) {
+            const openShareDetailsEventData = {
+				fileInfo: this.fileInfo,
+				share: share
+			};
+            this.$emit('open-sharing-details', openShareDetailsEventData);
 		},
 	},
 }
