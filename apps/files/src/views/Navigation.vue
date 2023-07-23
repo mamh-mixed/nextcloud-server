@@ -29,7 +29,7 @@
 				:icon="view.iconClass"
 				:open="isExpanded(view)"
 				:pinned="view.sticky"
-				:title="view.name"
+				:name="view.name"
 				:to="generateToNavigation(view)"
 				@update:open="onToggleExpand(view)">
 				<!-- Sanitized icon as svg if provided -->
@@ -41,7 +41,7 @@
 					:data-cy-files-navigation-item="child.id"
 					:exact="true"
 					:icon="child.iconClass"
-					:title="child.name"
+					:name="child.name"
 					:to="generateToNavigation(child)">
 					<!-- Sanitized icon as svg if provided -->
 					<NcIconSvgWrapper v-if="child.icon" slot="icon" :svg="child.icon" />
