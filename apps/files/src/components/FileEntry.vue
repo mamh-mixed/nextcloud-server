@@ -84,7 +84,7 @@
 				<span class="files-list__row-name-text">
 					<!-- Keep the displayName stuck to the extension to avoid whitespace rendering issues-->
 					<span class="files-list__row-name-" v-text="displayName" />
-					<span class="files-list__row-name-ext" v-text="source.extension" />
+					<span class="files-list__row-name-ext" v-text="extension" />
 				</span>
 			</a>
 		</td>
@@ -152,6 +152,7 @@ import { debounce } from 'debounce'
 import { emit } from '@nextcloud/event-bus'
 import { formatFileSize, Permission } from '@nextcloud/files'
 import { Fragment } from 'vue-frag'
+import { extname } from 'path'
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import { translate } from '@nextcloud/l10n'
 import { vOnClickOutside } from '@vueuse/components'
@@ -284,8 +285,15 @@ export default Vue.extend({
 		fileid() {
 			return this.source?.fileid?.toString?.()
 		},
+
+		extension() {
+			if (this.source.attributes?.displayName) {
+				return extname(this.source.attributes.displayName)
+			}
+			return this.source.extension || ''
+		},
 		displayName() {
-			const ext = (this.source.extension || '')
+			const ext = this.extension
 			const name = (this.source.attributes.displayName
 				|| this.source.basename)
 
