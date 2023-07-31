@@ -394,28 +394,8 @@
                         "type": "string"
                     },
                     "status": {
-                        "oneOf": [
-                            {
-                                "type": "integer",
-                                "format": "int64"
-                            },
-                            {
-                                "type": "integer",
-                                "format": "int64"
-                            },
-                            {
-                                "type": "integer",
-                                "format": "int64"
-                            },
-                            {
-                                "type": "integer",
-                                "format": "int64"
-                            },
-                            {
-                                "type": "integer",
-                                "format": "int64"
-                            }
-                        ]
+                        "type": "integer",
+                        "format": "int64"
                     },
                     "userId": {
                         "type": "string",
@@ -4300,21 +4280,24 @@
                                                     ],
                                                     "properties": {
                                                         "types": {
-                                                            "type": "object",
-                                                            "required": [
-                                                                "id",
-                                                                "name",
-                                                                "description"
-                                                            ],
-                                                            "properties": {
-                                                                "id": {
-                                                                    "type": "string"
-                                                                },
-                                                                "name": {
-                                                                    "type": "string"
-                                                                },
-                                                                "description": {
-                                                                    "type": "string"
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object",
+                                                                "required": [
+                                                                    "id",
+                                                                    "name",
+                                                                    "description"
+                                                                ],
+                                                                "properties": {
+                                                                    "id": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "description": {
+                                                                        "type": "string"
+                                                                    }
                                                                 }
                                                             }
                                                         }
