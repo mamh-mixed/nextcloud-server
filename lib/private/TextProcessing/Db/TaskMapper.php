@@ -45,13 +45,13 @@ class TaskMapper extends QBMapper {
 	}
 
 	/**
-	 * @param int $id
+	 * @param int|float $id
 	 * @return Task
 	 * @throws Exception
 	 * @throws DoesNotExistException
 	 * @throws MultipleObjectsReturnedException
 	 */
-	public function find(int $id): Task {
+	public function find(int|float $id): Task {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select(Task::$columns)
 			->from($this->tableName)

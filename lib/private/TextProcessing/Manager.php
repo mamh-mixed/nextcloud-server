@@ -162,12 +162,12 @@ class Manager implements IManager {
 	}
 
 	/**
-	 * @param int $id The id of the task
+	 * @param int|float $id The id of the task
 	 * @return OCPTask
 	 * @throws RuntimeException If the query failed
 	 * @throws NotFoundException If the task could not be found
 	 */
-	public function getTask(int $id): OCPTask {
+	public function getTask(int|float $id): OCPTask {
 		try {
 			$taskEntity = $this->taskMapper->find($id);
 			return $taskEntity->toPublicTask();

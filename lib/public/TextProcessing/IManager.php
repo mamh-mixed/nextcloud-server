@@ -67,11 +67,11 @@ interface IManager {
 	public function scheduleTask(Task $task) : void;
 
 	/**
-	 * @param int $id The id of the task
+	 * @param int|float $id The id of the task
 	 * @return Task
 	 * @throws RuntimeException If the query failed
 	 * @throws NotFoundException If the task could not be found
 	 * @since 27.1.0
 	 */
-	public function getTask(int $id): Task;
+	public function getTask(int|float $id): Task;
 }

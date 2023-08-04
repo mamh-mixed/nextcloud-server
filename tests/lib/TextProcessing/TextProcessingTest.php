@@ -138,7 +138,7 @@ class TextProcessingTest extends \Test\TestCase {
 		$this->taskMapper
 			->expects($this->any())
 			->method('find')
-			->willReturnCallback(function (int $id) {
+			->willReturnCallback(function (int|float $id) {
 				if (!isset($this->tasksDb[$id])) {
 					throw new DoesNotExistException('Could not find it');
 				}
