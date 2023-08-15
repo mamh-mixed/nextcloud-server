@@ -201,6 +201,7 @@ interface IRequest {
 	 *
 	 * @return bool true if CSRF check passed
 	 * @since 6.0.0
+	 * @deprecated 28.0.0 use CsrfValidator.validate instead
 	 */
 	public function passesCSRFCheck(): bool;
 

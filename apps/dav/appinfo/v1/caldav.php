@@ -35,6 +35,7 @@ use OCA\DAV\Connector\Sabre\ExceptionLoggerPlugin;
 use OCA\DAV\Connector\Sabre\MaintenancePlugin;
 use OCA\DAV\Connector\Sabre\Principal;
 use OCP\Accounts\IAccountManager;
+use OCP\Security\CSRF\ICsrfValidator;
 use Psr\Log\LoggerInterface;
 
 $authBackend = new Auth(
@@ -43,6 +44,7 @@ $authBackend = new Auth(
 	\OC::$server->getRequest(),
 	\OC::$server->getTwoFactorAuthManager(),
 	\OC::$server->getBruteForceThrottler(),
+	\OC::$server->get(ICsrfValidator::class),
 	'principals/'
 );
 $principalBackend = new Principal(

@@ -43,6 +43,7 @@ use OCP\IRequest;
 use OCP\ISession;
 use OCP\Security\Bruteforce\IThrottler;
 use OCP\Security\Bruteforce\MaxDelayReached;
+use OCP\Security\CSRF\ICsrfValidator;
 use Psr\Log\LoggerInterface;
 use Sabre\DAV\Auth\Backend\AbstractBasic;
 use Sabre\DAV\Exception\NotAuthenticated;
@@ -60,17 +61,21 @@ class Auth extends AbstractBasic {
 	private Manager $twoFactorManager;
 	private IThrottler $throttler;
 
+	private ICsrfValidator $csrfValidator;
+
 	public function __construct(ISession $session,
 								Session $userSession,
 								IRequest $request,
 								Manager $twoFactorManager,
 								IThrottler $throttler,
+								ICsrfValidator $csrfValidator,
 								string $principalPrefix = 'principals/users/') {
 		$this->session = $session;
 		$this->userSession = $userSession;
 		$this->twoFactorManager = $twoFactorManager;
 		$this->request = $request;
 		$this->throttler = $throttler;
+		$this->csrfValidator = $csrfValidator;
 		$this->principalPrefix = $principalPrefix;
 
 		// setup realm
@@ -190,7 +195,7 @@ class Auth extends AbstractBasic {
 	private function auth(RequestInterface $request, ResponseInterface $response): array {
 		$forcedLogout = false;
 
-		if (!$this->request->passesCSRFCheck() &&
+		if (!$this->csrfValidator->validate($this->request) &&
 			$this->requiresCSRFCheck()) {
 			// In case of a fail with POST we need to recheck the credentials
 			if ($this->request->getMethod() === 'POST') {
@@ -223,7 +228,7 @@ class Auth extends AbstractBasic {
 
 		if (!$this->userSession->isLoggedIn() && in_array('XMLHttpRequest', explode(',', $request->getHeader('X-Requested-With') ?? ''))) {
 			// do not re-authenticate over ajax, use dummy auth name to prevent browser popup
-			$response->addHeader('WWW-Authenticate','DummyBasic realm="' . $this->realm . '"');
+			$response->addHeader('WWW-Authenticate', 'DummyBasic realm="' . $this->realm . '"');
 			$response->setStatus(401);
 			throw new \Sabre\DAV\Exception\NotAuthenticated('Cannot authenticate over ajax calls');
 		}

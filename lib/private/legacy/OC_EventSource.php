@@ -1,5 +1,6 @@
 <?php
 
+use OC\Security\CSRF\CsrfValidator;
 use OCP\IRequest;
 
 /**
@@ -46,9 +47,11 @@ class OC_EventSource implements \OCP\IEventSource {
 	private $started = false;
 
 	private IRequest $request;
+	private CsrfValidator $csrfValidator;
 
-	public function __construct(IRequest $request) {
+	public function __construct(IRequest $request, CsrfValidator $csrfValidator) {
 		$this->request = $request;
+		$this->csrfValidator = $csrfValidator;
 	}
 
 	protected function init() {
@@ -84,7 +87,7 @@ class OC_EventSource implements \OCP\IEventSource {
 			header('Location: '.\OC::$WEBROOT);
 			exit();
 		}
-		if (!$this->request->passesCSRFCheck()) {
+		if (!$this->csrfValidator->validate($this->request)) {
 			$this->send('error', 'Possible CSRF attack. Connection will be closed.');
 			$this->close();
 			exit();

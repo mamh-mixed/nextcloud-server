@@ -28,6 +28,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>
  *
  */
+
+use OCP\Security\CSRF\ICsrfValidator;
 use Psr\Log\LoggerInterface;
 
 // no php execution timeout for webdav
@@ -61,6 +63,7 @@ $authBackend = new \OCA\DAV\Connector\Sabre\Auth(
 	\OC::$server->getRequest(),
 	\OC::$server->getTwoFactorAuthManager(),
 	\OC::$server->getBruteForceThrottler(),
+	\OC::$server->get(ICsrfValidator::class),
 	'principals/'
 );
 $authPlugin = new \Sabre\DAV\Auth\Plugin($authBackend);

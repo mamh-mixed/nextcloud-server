@@ -1,10 +1,17 @@
 <?php
+
+declare(strict_types=1);
+
+namespace OCP\Security\CSRF;
+
+use OCP\IRequest;
+
 /**
  * @copyright Copyright (c) 2023 Daniel Kesselberg <mail@danielkesselberg.de>
  *
  * @author Daniel Kesselberg <mail@danielkesselberg.de>
  *
- * @license AGPL-3.0-or-later
+ * @license GNU AGPL version 3 or any later version
  *
  * This code is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -16,24 +23,16 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License, version 3,
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ * along with this program. If not, see <http://www.gnu.org/licenses/>
  *
  */
 
-namespace Test;
-
-use OC\EventSourceFactory;
-use OCP\IEventSource;
-use OCP\IRequest;
-use OCP\Security\CSRF\ICsrfValidator;
-
-class EventSourceFactoryTest extends TestCase {
-	public function testCreate(): void {
-		$request = $this->createMock(IRequest::class);
-		$csrfValidator = $this->createMock(ICsrfValidator::class);
-		$factory = new EventSourceFactory($request, $csrfValidator);
-
-		$instance = $factory->create();
-		$this->assertInstanceOf(IEventSource::class, $instance);
-	}
+/**
+ * @since 28.0.0
+ */
+interface ICsrfValidator {
+	/**
+	 * @since 28.0.0
+	 */
+	public function validate(IRequest $request): bool;
 }

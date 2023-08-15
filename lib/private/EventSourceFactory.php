@@ -22,16 +22,15 @@
 
 namespace OC;
 
+use OC\Security\CSRF\CsrfValidator;
 use OCP\IEventSource;
 use OCP\IEventSourceFactory;
 use OCP\IRequest;
 
 class EventSourceFactory implements IEventSourceFactory {
-	private IRequest $request;
-
-
-	public function __construct(IRequest $request) {
-		$this->request = $request;
+	public function __construct(
+		private IRequest $request,
+		private CsrfValidator $csrfValidator) {
 	}
 
 	/**
@@ -41,6 +40,9 @@ class EventSourceFactory implements IEventSourceFactory {
 	 * @since 28.0.0
 	 */
 	public function create(): IEventSource {
-		return new \OC_EventSource($this->request);
+		return new \OC_EventSource(
+			$this->request,
+			$this->csrfValidator
+		);
 	}
 }
