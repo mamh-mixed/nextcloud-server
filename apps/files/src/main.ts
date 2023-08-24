@@ -5,6 +5,7 @@ import './actions/deleteAction'
 import './actions/downloadAction'
 import './actions/editLocallyAction'
 import './actions/favoriteAction'
+import './actions/moveOrCopyAction'
 import './actions/openFolderAction'
 import './actions/openInFilesAction.js'
 import './actions/renameAction'
@@ -38,6 +39,9 @@ declare global {
 		OCP: any;
 	}
 }
+
+// @ts-expect-error __webpack_nonce__ is injected by webpack
+__webpack_nonce__ = btoa(getRequestToken())
 
 // Init private and public Files namespace
 window.OCA.Files = window.OCA.Files ?? {}
