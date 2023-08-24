@@ -42,7 +42,7 @@ type ShareAttribute = {
 	scope: string
 }
 
-enum MoveCopyAction {
+export enum MoveCopyAction {
 	MOVE = 'Move',
 	COPY = 'Copy',
 	MOVE_OR_COPY = 'move-or-copy',
@@ -102,13 +102,13 @@ export const handleCopyMoveNodeTo = async (node: Node, destination: Node, method
 	}
 
 	const relativePath = `${destination.path}/${node.basename}`.replace(/\/\//, '/')
-	const destinationUrl = generateRemoteUrl(`dav/files/${getCurrentUser()?.uid}${relativePath}`)
+	const destinationUrl = encodeURI(generateRemoteUrl(`dav/files/${getCurrentUser()?.uid}${relativePath}`))
 	logger.debug(`${method} ${node.basename} to ${destinationUrl}`)
 
 	try {
 		await axios({
 			method: method === MoveCopyAction.COPY ? 'COPY' : 'MOVE',
-			url: node.source,
+			url: encodeURI(node.source),
 			headers: {
 				Destination: destinationUrl,
 				Overwrite: 'F', // Do not overwrite
@@ -176,6 +176,7 @@ const openFilePickerForAction = async (action: MoveCopyAction, dir = '/', node: 
 					},
 				})
 			}
+
 			if (action === MoveCopyAction.MOVE || action === MoveCopyAction.MOVE_OR_COPY) {
 				buttons.push({
 					label: target ? t('files', 'Move to {target}', { target }) : t('files', 'Move'),
@@ -191,11 +192,15 @@ const openFilePickerForAction = async (action: MoveCopyAction, dir = '/', node: 
 					},
 				})
 			}
+
 			return buttons
 		})
 
 		const picker = filePicker.build()
-		picker.pick()
+		picker.pick().catch(() => {
+			debugger
+			reject(new Error('cancelled'))
+		})
 	})
 }
 
