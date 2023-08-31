@@ -228,6 +228,14 @@ export default {
 			return this.$store.getters.getUsersLimit
 		},
 
+		disabledUsersOffset() {
+			return this.$store.getters.getDisabledUsersOffset
+		},
+
+		disabledUsersLimit() {
+			return this.$store.getters.getDisabledUsersLimit
+		},
+
 		usersCount() {
 			return this.users.length
 		},
@@ -312,12 +320,19 @@ export default {
 		async loadUsers() {
 			this.loading.users = true
 			try {
-				await this.$store.dispatch('getUsers', {
-					offset: this.usersOffset,
-					limit: this.usersLimit,
-					group: this.selectedGroup !== 'disabled' ? this.selectedGroup : '',
-					search: this.searchQuery,
-				})
+				if (this.selectedGroup === 'disabled') {
+					await this.$store.dispatch('getDisabledUsers', {
+						offset: this.disabledUsersOffset,
+						limit: this.disabledUsersLimit,
+					})
+				} else {
+					await this.$store.dispatch('getUsers', {
+						offset: this.usersOffset,
+						limit: this.usersLimit,
+						group: this.selectedGroup,
+						search: this.searchQuery,
+					})
+				}
 				logger.debug(`${this.users.length} total user(s) loaded`)
 			} catch (error) {
 				logger.error('Failed to load users', { error })
