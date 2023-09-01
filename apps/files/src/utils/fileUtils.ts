@@ -19,8 +19,10 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  */
+import { FileType, type Node } from '@nextcloud/files'
+import { translate as t, translatePlural as n } from '@nextcloud/l10n'
 
-const encodeFilePath = function(path) {
+export const encodeFilePath = function(path) {
 	const pathSections = (path.startsWith('/') ? path : `/${path}`).split('/')
 	let relativePath = ''
 	pathSections.forEach((section) => {
@@ -37,11 +39,35 @@ const encodeFilePath = function(path) {
  * @param {string} path the full path
  * @return {string[]} [dirPath, fileName]
  */
-const extractFilePaths = function(path) {
+export const extractFilePaths = function(path) {
 	const pathSections = path.split('/')
 	const fileName = pathSections[pathSections.length - 1]
 	const dirPath = pathSections.slice(0, pathSections.length - 1).join('/')
 	return [dirPath, fileName]
 }
 
-export { encodeFilePath, extractFilePaths }
+/**
+ * Generate a translated summary of an array of nodes
+ * @param {Node[]} nodes the nodes to summarize
+ * @return {string}
+ */
+export const getSummaryFor = (nodes: Node[]): string => {
+	const fileCount = nodes.filter(node => node.type === FileType.File).length
+	const folderCount = nodes.filter(node => node.type === FileType.Folder).length
+
+	if (fileCount === 0 && folderCount === 1) {
+		return t('files', '1 folder')
+	} else if (fileCount === 1 && folderCount === 0) {
+		return t('files', '1 file')
+	}
+
+	if (fileCount === 1) {
+		return t('files', '1 file and {folderCount} folders', { folderCount })
+	}
+
+	if (folderCount === 1) {
+		return t('files', '{fileCount} files and 1 folder', { fileCount })
+	}
+
+	return t('files', '{fileCount} files and {folderCount} folders', { fileCount, folderCount })
+}

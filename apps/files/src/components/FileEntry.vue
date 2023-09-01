@@ -21,7 +21,7 @@
   -->
 
 <template>
-	<tr :class="{'files-list__row--visible': visible, 'files-list__row--active': dragover || isActive}"
+	<tr :class="{'files-list__row--visible': visible, 'files-list__row--active': isActive, 'files-list__row--dragover': dragover}"
 		data-cy-files-list-row
 		:data-cy-files-list-row-fileid="fileid"
 		:data-cy-files-list-row-name="source.basename"
@@ -40,9 +40,7 @@
 		<td class="files-list__row-checkbox">
 			<NcCheckboxRadioSwitch v-if="visible"
 				:aria-label="t('files', 'Select the row for {displayName}', { displayName })"
-				:checked="selectedFiles"
-				:value="fileid"
-				name="selectedFiles"
+				:checked="isSelected"
 				@update:checked="onSelectionChange" />
 		</td>
 
@@ -127,7 +125,7 @@
 				ref="actionsMenu"
 				:boundaries-element="getBoundariesElement()"
 				:container="getBoundariesElement()"
-				:disabled="source._loading"
+				:disabled="source.status === NodeStatus.LOADING"
 				:force-name="true"
 				:force-menu="enabledInlineActions.length === 0 /* forceMenu only if no inline actions */"
 				:inline="enabledInlineActions.length"
@@ -187,7 +185,7 @@ import { debounce } from 'debounce'
 import { emit } from '@nextcloud/event-bus'
 import { extname } from 'path'
 import { generateUrl } from '@nextcloud/router'
-import { getFileActions, DefaultType, FileType, formatFileSize, Permission, Folder, File, Node } from '@nextcloud/files'
+import { getFileActions, DefaultType, FileType, formatFileSize, Permission, Folder, File, Node, NodeStatus } from '@nextcloud/files'
 import { Type as ShareType } from '@nextcloud/sharing'
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import { translate } from '@nextcloud/l10n'
@@ -220,7 +218,8 @@ import { useKeyboardStore } from '../store/keyboard.ts'
 import { useRenamingStore } from '../store/renaming.ts'
 import { useSelectionStore } from '../store/selection.ts'
 import { useUserConfigStore } from '../store/userconfig.ts'
-import { handleCopyMoveNodeTo, MoveCopyAction } from '../actions/moveOrCopyAction.ts'
+import { handleCopyMoveNodeTo } from '../actions/moveOrCopyAction.ts'
+import { MoveCopyAction } from '../actions/moveOrCopyActionUtils.ts'
 import CustomElementRender from './CustomElementRender.vue'
 import CustomSvgIconRender from './CustomSvgIconRender.vue'
 import FavoriteIcon from './FavoriteIcon.vue'
@@ -309,6 +308,8 @@ export default Vue.extend({
 			backgroundImage: '',
 			loading: '',
 			dragover: false,
+
+			NodeStatus,
 		}
 	},
 
@@ -577,7 +578,16 @@ export default Vue.extend({
 		},
 
 		canDrag() {
-			return (this.source.permissions & Permission.UPDATE) !== 0
+			const canDrag = (node: Node): boolean => {
+				return (node.permissions & Permission.UPDATE) !== 0
+			}
+
+			// If we're dragging a selection, we need to check all files
+			if (this.selectedFiles.length > 0) {
+				const nodes = this.selectedFiles.map(fileId => this.filesStore.getNode(fileId)) as Node[]
+				return nodes.every(canDrag)
+			}
+			return canDrag(this.source)
 		},
 
 		canDrop() {
@@ -673,10 +683,6 @@ export default Vue.extend({
 					this.backgroundFailed = false
 					resolve(img)
 				}
-				img.onerror = () => {
-					this.backgroundFailed = true
-					reject(img)
-				}
 				img.src = this.previewUrl
 
 				// Image loading has been canceled
@@ -714,7 +720,7 @@ export default Vue.extend({
 			try {
 				// Set the loading marker
 				this.loading = action.id
-				Vue.set(this.source, '_loading', true)
+				Vue.set(this.source, 'status', NodeStatus.LOADING)
 
 				const success = await action.exec(this.source, this.currentView, this.currentDir)
 
@@ -734,7 +740,7 @@ export default Vue.extend({
 			} finally {
 				// Reset the loading marker
 				this.loading = ''
-				Vue.set(this.source, '_loading', false)
+				Vue.set(this.source, 'status', undefined)
 			}
 		},
 		execDefaultAction(event) {
@@ -754,7 +760,7 @@ export default Vue.extend({
 			}
 		},
 
-		onSelectionChange(selection) {
+		onSelectionChange(selected: boolean) {
 			const newSelectedIndex = this.index
 			const lastSelectedIndex = this.selectionStore.lastSelectedIndex
 
@@ -779,6 +785,10 @@ export default Vue.extend({
 				this.selectionStore.set(selection)
 				return
 			}
+
+			const selection = selected
+				? [...this.selectedFiles, this.fileid]
+				: this.selectionStore.lastSelection.filter(fileId => fileId !== this.fileid)
 
 			logger.debug('Updating selection', { selection })
 			this.selectionStore.set(selection)
@@ -890,7 +900,7 @@ export default Vue.extend({
 
 			// Set loading state
 			this.loading = 'renaming'
-			Vue.set(this.source, '_loading', true)
+			Vue.set(this.source, 'status', NodeStatus.LOADING)
 
 			// Update node
 			this.source.rename(newName)
@@ -932,7 +942,7 @@ export default Vue.extend({
 				showError(this.t('files', 'Could not rename "{oldName}"', { oldName }))
 			} finally {
 				this.loading = false
-				Vue.set(this.source, '_loading', false)
+				Vue.set(this.source, 'status', undefined)
 			}
 		},
 
@@ -945,10 +955,26 @@ export default Vue.extend({
 			return document.querySelector('.app-content > .files-list')
 		},
 
-		onDragOver() {
+		onDragOver(event) {
 			this.dragover = this.canDrop
+			if (!this.canDrop) {
+				event.preventDefault()
+				event.stopPropagation()
+				event.dataTransfer.dropEffect = 'none'
+				return
+			}
+
+			// Handle copy/move drag and drop
+			if (event.ctrlKey) {
+				event.dataTransfer.dropEffect = 'copy'
+			} else {
+				event.dataTransfer.dropEffect = 'move'
+			}
 		},
-		onDragLeave() {
+		onDragLeave(event) {
+			if (this.$el.contains(event.target) && event.target !== this.$el) {
+				return
+			}
 			this.dragover = false
 		},
 
@@ -961,8 +987,9 @@ export default Vue.extend({
 
 			logger.debug('Drag started')
 
-			// Dragging set of files
-			if (this.selectedFiles.length > 0) {
+			// Dragging set of files, if we're dragging an file
+			// that is already selected, we use the entire selection
+			if (this.selectedFiles.includes(this.fileId)) {
 				this.draggingStore.set(this.selectedFiles)
 				return
 			}
@@ -972,7 +999,6 @@ export default Vue.extend({
 		onDragEnd() {
 			this.draggingStore.reset()
 			this.dragover = false
-			logger.debug('Drag ended')
 		},
 
 		onDrop(event) {
@@ -982,18 +1008,33 @@ export default Vue.extend({
 				return
 			}
 
+			const isCopy = event.ctrlKey
+			this.dragover = false
+
 			logger.debug('Dropped', { event, selection: this.draggingFiles })
 			this.draggingFiles.forEach(async fileId => {
 				const node = this.filesStore.getNode(fileId)
-				Vue.set(node, '_loading', true)
+				Vue.set(this.source, 'status', NodeStatus.LOADING)
 				try {
-					await handleCopyMoveNodeTo(node, this.source, MoveCopyAction.COPY)
+					await handleCopyMoveNodeTo(node, this.source, isCopy ? MoveCopyAction.COPY : MoveCopyAction.MOVE)
 				} catch (error) {
 					logger.error('Error while moving file', { error })
-					showError(this.t('files', 'Could not move {file}', { file: node.basename }))
+					if (isCopy) {
+						showError(this.t('files', 'Could not copy {file}. {message}', { file: node.basename, message: error.message || '' }))
+					} else {
+						showError(this.t('files', 'Could not move {file}. {message}', { file: node.basename, message: error.message || '' }))
+					}
+				} finally {
+					Vue.set(this.source, 'status', undefined)
 				}
-				Vue.set(node, '_loading', false)
 			})
+
+			// Reset selection after we dropped the files
+			// if the dropped files are within the selection
+			if (this.draggingFiles.some(fileId => this.selectedFiles.includes(fileId))) {
+				logger.debug('Dropped selection, resetting select store...')
+				this.selectionStore.reset()
+			}
 		},
 
 		t: translate,

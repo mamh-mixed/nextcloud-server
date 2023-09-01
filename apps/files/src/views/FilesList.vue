@@ -63,7 +63,7 @@
 			data-cy-files-content-empty>
 			<template #action>
 				<NcButton v-if="dir !== '/'"
-					aria-label="t('files', 'Go to the previous folder')"
+					:aria-label="t('files', 'Go to the previous folder')"
 					type="primary"
 					:to="toPreviousDir">
 					{{ t('files', 'Go back') }}
@@ -80,6 +80,11 @@
 			:current-folder="currentFolder"
 			:current-view="currentView"
 			:nodes="dirContentsSorted" />
+
+		<!-- Dragging ghost image -->
+		<div class="files-list__drag-image">
+			{{ summary }}
+		</div>
 	</NcAppContent>
 </template>
 
@@ -93,7 +98,7 @@ import { Folder, Node, Permission } from '@nextcloud/files'
 import { getCapabilities } from '@nextcloud/capabilities'
 import { join, dirname } from 'path'
 import { orderBy } from 'natural-orderby'
-import { translate } from '@nextcloud/l10n'
+import { translate, translatePlural } from '@nextcloud/l10n'
 import { UploadPicker } from '@nextcloud/upload'
 import { Type } from '@nextcloud/sharing'
 import Vue from 'vue'
@@ -107,6 +112,8 @@ import LinkIcon from 'vue-material-design-icons/Link.vue'
 import ShareVariantIcon from 'vue-material-design-icons/ShareVariant.vue'
 
 import { action as sidebarAction } from '../actions/sidebarAction.ts'
+import { getSummaryFor } from '../utils/fileUtils.ts'
+import { useDragAndDropStore } from '../store/dragging.ts'
 import { useFilesStore } from '../store/files.ts'
 import { usePathsStore } from '../store/paths.ts'
 import { useSelectionStore } from '../store/selection.ts'
@@ -141,6 +148,7 @@ export default Vue.extend({
 	],
 
 	setup() {
+		const draggingStore = useDragAndDropStore()
 		const filesStore = useFilesStore()
 		const pathsStore = usePathsStore()
 		const selectionStore = useSelectionStore()
@@ -148,6 +156,7 @@ export default Vue.extend({
 		const userConfigStore = useUserConfigStore()
 		const viewConfigStore = useViewConfigStore()
 		return {
+			draggingStore,
 			filesStore,
 			pathsStore,
 			selectionStore,
@@ -302,6 +311,21 @@ export default Vue.extend({
 			return isSharingEnabled
 				&& this.currentFolder && (this.currentFolder.permissions & Permission.SHARE) !== 0
 		},
+
+		/**
+		 * List of files currently being dragged.
+		 */
+		draggingFiles(): Node[] {
+			return this.draggingStore.dragging.map(this.getNode)
+		},
+		summary(): string {
+			if (this.draggingFiles.length === 1) {
+				const node = this.draggingFiles[0]
+				return node.attributes?.displayName || node.basename
+			}
+
+			return getSummaryFor(this.draggingFiles)
+		},
 	},
 
 	watch: {
@@ -416,6 +440,7 @@ export default Vue.extend({
 		},
 
 		t: translate,
+		n: translatePlural,
 	},
 })
 </script>

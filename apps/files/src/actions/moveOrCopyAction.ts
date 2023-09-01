@@ -19,13 +19,17 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
 import '@nextcloud/dialogs/style.css'
+import type { Node, View } from '@nextcloud/files'
+import type { IFilePickerButton } from '@nextcloud/dialogs'
+
+// eslint-disable-next-line n/no-extraneous-import
 import { AxiosError } from 'axios'
-import { getFilePickerBuilder, showError, type IFilePickerButton } from '@nextcloud/dialogs'
-import { Permission, type Node, type View, registerFileAction, FileAction, FileType } from '@nextcloud/files'
+import { getFilePickerBuilder, showError } from '@nextcloud/dialogs'
+import { Permission, registerFileAction, FileAction, FileType, NodeStatus } from '@nextcloud/files'
 import { translate as t } from '@nextcloud/l10n'
 import axios from '@nextcloud/axios'
+import Vue from 'vue'
 
 import CopyIcon from 'vue-material-design-icons/FileMultiple.vue'
 import FolderMoveSvg from '@mdi/svg/svg/folder-move.svg?raw'
@@ -34,38 +38,8 @@ import MoveIcon from 'vue-material-design-icons/FolderMove.vue'
 import { basename } from 'path'
 import { generateRemoteUrl } from '@nextcloud/router'
 import { getCurrentUser } from '@nextcloud/auth'
+import { MoveCopyAction, canCopy, canDownload, canMove, getQueue } from './moveOrCopyActionUtils'
 import logger from '../logger'
-
-type ShareAttribute = {
-	enabled: boolean
-	key: string
-	scope: string
-}
-
-export enum MoveCopyAction {
-	MOVE = 'Move',
-	COPY = 'Copy',
-	MOVE_OR_COPY = 'move-or-copy',
-}
-
-const canMove = (nodes: Node[]) => {
-	const minPermission = nodes.reduce((min, node) => Math.min(min, node.permissions), Permission.ALL)
-	return (minPermission & Permission.UPDATE) !== 0
-}
-
-const canDownload = (nodes: Node[]) => {
-	return nodes.every(node => {
-		const shareAttributes = JSON.parse(node.attributes?.['share-attributes'] ?? '[]') as Array<ShareAttribute>
-		return shareAttributes.every(attribute => !(attribute.scope === 'permissions' && attribute.enabled === false && attribute.key === 'download'))
-
-	})
-}
-
-const canCopy = (nodes: Node[]) => {
-	// For now the only restriction is that a shared file
-	// cannot be copied if the download is disabled
-	return canDownload(nodes)
-}
 
 /**
  * Return the action that is possible for the given nodes
@@ -84,6 +58,14 @@ const getActionForNodes = (nodes: Node[]): MoveCopyAction => {
 	return MoveCopyAction.COPY
 }
 
+/**
+ * Handle the copy/move of a node to a destination
+ * This can be imported and used by other scripts/components on server
+ * @param {Node} node The node to copy/move
+ * @param {Node} destination The destination to copy/move the node to
+ * @param {MoveCopyAction} method The method to use for the copy/move
+ * @return {Promise<void>} A promise that resolves when the copy/move is done
+ */
 export const handleCopyMoveNodeTo = async (node: Node, destination: Node, method: MoveCopyAction.COPY | MoveCopyAction.MOVE) => {
 	if (!destination) {
 		return
@@ -105,25 +87,33 @@ export const handleCopyMoveNodeTo = async (node: Node, destination: Node, method
 	const destinationUrl = encodeURI(generateRemoteUrl(`dav/files/${getCurrentUser()?.uid}${relativePath}`))
 	logger.debug(`${method} ${node.basename} to ${destinationUrl}`)
 
-	try {
-		await axios({
-			method: method === MoveCopyAction.COPY ? 'COPY' : 'MOVE',
-			url: encodeURI(node.source),
-			headers: {
-				Destination: destinationUrl,
-				Overwrite: 'F', // Do not overwrite
-			},
-		})
-	} catch (error) {
-		if (error instanceof AxiosError) {
-			if (error?.response?.status === 412) {
-				throw new Error(t('files', 'A file or folder with that name already exists in this folder'))
-			} else if (error.message) {
-				throw new Error(error.message)
+	// Set loading state
+	Vue.set(node, 'status', NodeStatus.LOADING)
+
+	const queue = getQueue()
+	return await queue.add(async () => {
+		try {
+			await axios({
+				method: method === MoveCopyAction.COPY ? 'COPY' : 'MOVE',
+				url: encodeURI(node.source),
+				headers: {
+					Destination: destinationUrl,
+					Overwrite: 'F', // Do not overwrite
+				},
+			})
+		} catch (error) {
+			if (error instanceof AxiosError) {
+				if (error?.response?.status === 412) {
+					throw new Error(t('files', 'A file or folder with that name already exists in this folder'))
+				} else if (error.message) {
+					throw new Error(error.message)
+				}
 			}
+			throw new Error()
+		} finally {
+			Vue.set(node, 'status', undefined)
 		}
-		throw new Error()
-	}
+	})
 }
 
 /**
