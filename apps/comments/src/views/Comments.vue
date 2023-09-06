@@ -315,10 +315,20 @@ export default {
 
 <style lang="scss" scoped>
 .comments {
+	min-height: 100%;
+	display: flex;
+	flex-direction: column;
+
 	// Do not add emptycontent top margin
 	&__empty,
 	&__error {
 		margin-top: 0 !important;
+	}
+
+	&__empty {
+		flex: 1 0;
+		// Alternative: https://github.com/nextcloud-libraries/nextcloud-vue/pull/4506
+		justify-content: center;
 	}
 
 	&__retry {
