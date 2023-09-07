@@ -33,8 +33,11 @@ use Sabre\DAV\ServerPlugin;
 use Sabre\DAV\Server;
 
 class CommentPropertiesPlugin extends ServerPlugin {
+	/** URL where users can comment on a resource */
 	public const PROPERTY_NAME_HREF = '{http://owncloud.org/ns}comments-href';
+	/** Number of comments on a resource */
 	public const PROPERTY_NAME_COUNT = '{http://owncloud.org/ns}comments-count';
+	/** Number of unread comments on a resource */
 	public const PROPERTY_NAME_UNREAD = '{http://owncloud.org/ns}comments-unread';
 
 	protected ?Server $server = null;

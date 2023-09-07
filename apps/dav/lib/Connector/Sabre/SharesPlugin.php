@@ -45,7 +45,11 @@ use Sabre\DAV\Server;
 class SharesPlugin extends \Sabre\DAV\ServerPlugin {
 	public const NS_OWNCLOUD = 'http://owncloud.org/ns';
 	public const NS_NEXTCLOUD = 'http://nextcloud.org/ns';
+
+	/** Types of shares on the resource */
 	public const SHARETYPES_PROPERTYNAME = '{http://owncloud.org/ns}share-types';
+
+	/** Sharees of the resource */
 	public const SHAREES_PROPERTYNAME = '{http://nextcloud.org/ns}sharees';
 
 	/**

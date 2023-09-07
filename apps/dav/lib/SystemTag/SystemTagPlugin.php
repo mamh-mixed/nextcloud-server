@@ -55,14 +55,32 @@ class SystemTagPlugin extends \Sabre\DAV\ServerPlugin {
 
 	// namespace
 	public const NS_OWNCLOUD = 'http://owncloud.org/ns';
+
+	/** ID of the system tag */
 	public const ID_PROPERTYNAME = '{http://owncloud.org/ns}id';
+
+	/** Display name of the system tag */
 	public const DISPLAYNAME_PROPERTYNAME = '{http://owncloud.org/ns}display-name';
+
+	/** Indicates if the system tag is visible for regular users */
 	public const USERVISIBLE_PROPERTYNAME = '{http://owncloud.org/ns}user-visible';
+
+	/** Indicates if the system tag can be assigned to a resource by regular users */
 	public const USERASSIGNABLE_PROPERTYNAME = '{http://owncloud.org/ns}user-assignable';
+
+	/** Groups that can assign the system tag to a resource */
 	public const GROUPS_PROPERTYNAME = '{http://owncloud.org/ns}groups';
+
+	/** Indicates if the system tag can be assigned to a resource by the user */
 	public const CANASSIGN_PROPERTYNAME = '{http://owncloud.org/ns}can-assign';
+
+	/** System tags assigned to a resource */
 	public const SYSTEM_TAGS_PROPERTYNAME = '{http://nextcloud.org/ns}system-tags';
+
+	/** Number of files assigned with the system tag */
 	public const NUM_FILES_PROPERTYNAME = '{http://nextcloud.org/ns}files-assigned';
+
+	/** Reference file ID of the system tag */
 	public const FILEID_PROPERTYNAME = '{http://nextcloud.org/ns}reference-fileid';
 
 	/**

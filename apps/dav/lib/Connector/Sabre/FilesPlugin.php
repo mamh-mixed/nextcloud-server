@@ -59,32 +59,76 @@ class FilesPlugin extends ServerPlugin {
 	// namespace
 	public const NS_OWNCLOUD = 'http://owncloud.org/ns';
 	public const NS_NEXTCLOUD = 'http://nextcloud.org/ns';
+
+	/** Public ID of the resource */
 	public const FILEID_PROPERTYNAME = '{http://owncloud.org/ns}id';
+
+	/** Internal ID of the resource */
 	public const INTERNAL_FILEID_PROPERTYNAME = '{http://owncloud.org/ns}fileid';
+
+	/** Permissions of the user on the resource */
 	public const PERMISSIONS_PROPERTYNAME = '{http://owncloud.org/ns}permissions';
+
+	/** Share permissions of the user on the resource */
 	public const SHARE_PERMISSIONS_PROPERTYNAME = '{http://open-collaboration-services.org/ns}share-permissions';
+
+	/** Share permissions of the user on the resource */
 	public const OCM_SHARE_PERMISSIONS_PROPERTYNAME = '{http://open-cloud-mesh.org/ns}share-permissions';
+
+	/** Attributes of the share on this resource */
 	public const SHARE_ATTRIBUTES_PROPERTYNAME = '{http://nextcloud.org/ns}share-attributes';
+
+	/** URL where this resource can be downloaded */
 	public const DOWNLOADURL_PROPERTYNAME = '{http://owncloud.org/ns}downloadURL';
+
+	/** Size of the resource. Also works on collections */
 	public const SIZE_PROPERTYNAME = '{http://owncloud.org/ns}size';
 	public const GETETAG_PROPERTYNAME = '{DAV:}getetag';
 	public const LASTMODIFIED_PROPERTYNAME = '{DAV:}lastmodified';
 	public const CREATIONDATE_PROPERTYNAME = '{DAV:}creationdate';
 	public const DISPLAYNAME_PROPERTYNAME = '{DAV:}displayname';
+
+	/** User ID of the owner of the resource */
 	public const OWNER_ID_PROPERTYNAME = '{http://owncloud.org/ns}owner-id';
+
+	/** Display name of the owner of the resource */
 	public const OWNER_DISPLAY_NAME_PROPERTYNAME = '{http://owncloud.org/ns}owner-display-name';
+
+	/** Checksums for the resource */
 	public const CHECKSUMS_PROPERTYNAME = '{http://owncloud.org/ns}checksums';
+
+	/** Used to detect if a backup has been restored */
 	public const DATA_FINGERPRINT_PROPERTYNAME = '{http://owncloud.org/ns}data-fingerprint';
+
+	/** Indicates if a preview image is available for the resource */
 	public const HAS_PREVIEW_PROPERTYNAME = '{http://nextcloud.org/ns}has-preview';
+
+	/** Type of the mount the resource lives on */
 	public const MOUNT_TYPE_PROPERTYNAME = '{http://nextcloud.org/ns}mount-type';
+
+	/** Indicates if a resource is end-to-end encrypted */
 	public const IS_ENCRYPTED_PROPERTYNAME = '{http://nextcloud.org/ns}is-encrypted';
 	public const METADATA_ETAG_PROPERTYNAME = '{http://nextcloud.org/ns}metadata_etag';
+
+	/** Date when the resource was uploaded */
 	public const UPLOAD_TIME_PROPERTYNAME = '{http://nextcloud.org/ns}upload_time';
+
+	/** Date when the resource was created */
 	public const CREATION_TIME_PROPERTYNAME = '{http://nextcloud.org/ns}creation_time';
+
+	/** Note of a share on the resource */
 	public const SHARE_NOTE = '{http://nextcloud.org/ns}note';
+
+	/** Number of collections contained in the collection. Does not work recursively */
 	public const SUBFOLDER_COUNT_PROPERTYNAME = '{http://nextcloud.org/ns}contained-folder-count';
+
+	/** Number of files contained in the collection. Does not work recursively */
 	public const SUBFILE_COUNT_PROPERTYNAME = '{http://nextcloud.org/ns}contained-file-count';
+
+	/** Pixel size of an image taken from EXIF data */
 	public const FILE_METADATA_SIZE = '{http://nextcloud.org/ns}file-metadata-size';
+
+	/** GPS location of an image taken from EXIF data */
 	public const FILE_METADATA_GPS = '{http://nextcloud.org/ns}file-metadata-gps';
 
 	public const ALL_METADATA_PROPS = [
@@ -429,28 +473,12 @@ class FilesPlugin extends ServerPlugin {
 			});
 
 			if ($this->config->getSystemValueBool('enable_file_metadata', true)) {
-				foreach (self::ALL_METADATA_PROPS as $prop => $meta) {
-					$propFind->handle($prop, function () use ($node, $meta) {
-						if ($node->getFileInfo()->getMimePart() !== self::METADATA_MIMETYPES[$meta]) {
-							return [];
-						}
-
-						if ($node->hasMetadata($meta)) {
-							$metadata = $node->getMetadata($meta);
-						} else {
-							// This code path should not be called since we try to preload
-							// the metadata when loading the folder or the search results
-							// in one go
-							$metadataManager = \OC::$server->get(IMetadataManager::class);
-							$metadata = $metadataManager->fetchMetadataFor($meta, [$node->getId()])[$node->getId()];
-
-							// TODO would be nice to display this in the profiler...
-							\OC::$server->get(LoggerInterface::class)->debug('Inefficient fetching of metadata');
-						}
-
-						return $metadata->getValue();
-					});
-				}
+				$propFind->handle(self::FILE_METADATA_SIZE, function () use ($node) {
+					return self::handleMetadataProp($node, self::ALL_METADATA_PROPS[self::FILE_METADATA_SIZE]);
+				});
+				$propFind->handle(self::FILE_METADATA_GPS, function () use ($node) {
+					return self::handleMetadataProp($node, self::ALL_METADATA_PROPS[self::FILE_METADATA_GPS]);
+				});
 			}
 		}
 
@@ -514,6 +542,27 @@ class FilesPlugin extends ServerPlugin {
 				$propFind->handle(self::SUBFOLDER_COUNT_PROPERTYNAME, $nbFolders);
 			}
 		}
+	}
+
+	protected function handleMetadataProp(INode $node, string $meta): mixed {
+		if ($node->getFileInfo()->getMimePart() !== self::METADATA_MIMETYPES[$meta]) {
+			return [];
+		}
+
+		if ($node->hasMetadata($meta)) {
+			$metadata = $node->getMetadata($meta);
+		} else {
+			// This code path should not be called since we try to preload
+			// the metadata when loading the folder or the search results
+			// in one go
+			$metadataManager = OC::$server->get(IMetadataManager::class);
+			$metadata = $metadataManager->fetchMetadataFor($meta, [$node->getId()])[$node->getId()];
+
+			// TODO would be nice to display this in the profiler...
+			OC::$server->get(LoggerInterface::class)->debug('Inefficient fetching of metadata');
+		}
+
+		return $metadata->getValue();
 	}
 
 	/**

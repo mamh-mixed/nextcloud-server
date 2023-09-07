@@ -42,8 +42,11 @@ use function array_slice;
 use function implode;
 
 class Plugin extends ServerPlugin {
+	/** Date when the event was deleted */
 	public const PROPERTY_DELETED_AT = '{http://nextcloud.com/ns}deleted-at';
+	/** URI of the calendar of the event */
 	public const PROPERTY_CALENDAR_URI = '{http://nextcloud.com/ns}calendar-uri';
+	/** Duration of how long the event will be retained before the event will be deleted completely */
 	public const PROPERTY_RETENTION_DURATION = '{http://nextcloud.com/ns}trash-bin-retention-duration';
 
 	/** @var bool */
