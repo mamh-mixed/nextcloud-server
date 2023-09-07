@@ -323,6 +323,8 @@ class ObjectStoreStorage extends \OC\Files\Storage\Common implements IChunkedFil
 			case 'rb':
 				$stat = $this->stat($path);
 				if (is_array($stat)) {
+					$urn = $this->getURN($stat['fileid']);
+
 					$filesize = $stat['size'] ?? 0;
 					// Reading 0 sized files is a waste of time
 					if ($filesize === 0) {
@@ -330,7 +332,7 @@ class ObjectStoreStorage extends \OC\Files\Storage\Common implements IChunkedFil
 					}
 
 					try {
-						$handle = $this->objectStore->readObject($this->getURN($stat['fileid']));
+						$handle = $this->objectStore->readObject($urn);
 						if ($handle === false) {
 							return false; // keep backward compatibility
 						}
@@ -343,13 +345,15 @@ class ObjectStoreStorage extends \OC\Files\Storage\Common implements IChunkedFil
 					} catch (NotFoundException $e) {
 						$this->logger->logException($e, [
 							'app' => 'objectstore',
-							'message' => 'Could not get object ' . $this->getURN($stat['fileid']) . ' for file ' . $path,
+							'message' => 'Could not get object ' . $urn . ' for file ' . $path,
 						]);
+						$this->logger->warning("removing filecache entry for object that doesn't seem to exist on the object store. " . json_encode($stat));
+						$this->getCache()->remove($stat['fileid']);
 						throw $e;
 					} catch (\Exception $ex) {
 						$this->logger->logException($ex, [
 							'app' => 'objectstore',
-							'message' => 'Could not get object ' . $this->getURN($stat['fileid']) . ' for file ' . $path,
+							'message' => 'Could not get object ' . $urn . ' for file ' . $path,
 						]);
 						return false;
 					}
