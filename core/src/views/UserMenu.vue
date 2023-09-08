@@ -24,12 +24,15 @@
 	<NcHeaderMenu id="user-menu"
 		class="user-menu"
 		is-nav
-		:aria-label="t('core', 'Settings menu')">
+		:aria-label="t('core', 'Settings menu')"
+		:description="avatarDescription">
 		<template #trigger>
-			<NcAvatar class="user-menu__avatar"
+			<NcAvatar v-if="!isLoadingUserStatus"
+				class="user-menu__avatar"
 				:disable-menu="true"
 				:disable-tooltip="true"
-				:user="userId" />
+				:user="userId"
+				:preloaded-user-status="userStatus" />
 		</template>
 		<ul>
 			<UserMenuEntry v-for="entry in settingsNavEntries"
@@ -40,14 +43,19 @@
 </template>
 
 <script>
+import axios from '@nextcloud/axios'
 import { emit } from '@nextcloud/event-bus'
-import { getCurrentUser } from '@nextcloud/auth'
 import { loadState } from '@nextcloud/initial-state'
+import { generateOcsUrl } from '@nextcloud/router'
+import { getCurrentUser } from '@nextcloud/auth'
+import { getCapabilities } from '@nextcloud/capabilities'
 
 import NcAvatar from '@nextcloud/vue/dist/Components/NcAvatar.js'
 import NcHeaderMenu from '@nextcloud/vue/dist/Components/NcHeaderMenu.js'
 
 import UserMenuEntry from '../components/UserMenu/UserMenuEntry.vue'
+
+import logger from '../logger.js'
 
 const settingsNavEntries = loadState('core', 'settingsNavEntries', [])
 
@@ -63,12 +71,47 @@ export default {
 	data() {
 		return {
 			settingsNavEntries,
+			displayName: getCurrentUser()?.displayName,
 			userId: getCurrentUser()?.uid,
+			isLoadingUserStatus: true,
+			userStatus: {
+				status: null,
+				icon: null,
+				message: null,
+			},
 		}
+	},
+
+	async created() {
+		if (!getCapabilities()?.user_status?.enabled) {
+			return
+		}
+
+		const url = generateOcsUrl('/apps/user_status/api/v1/user_status')
+		try {
+			const response = await axios.get(url)
+			const { status, icon, message } = response.data.ocs.data
+			this.userStatus = { status, icon, message }
+		} catch (e) {
+			logger.error('Failed to load user status')
+		}
+		this.isLoadingUserStatus = false
 	},
 
 	mounted() {
 		emit('core:user-menu:mounted')
+	},
+
+	computed: {
+		avatarDescription() {
+			let description = t('core', 'Avatar of {displayName}', { displayName: this.displayName })
+			for (const [_key, value] of Object.entries(this.userStatus)) {
+				if (value) {
+					description += ` — ${value}`
+				}
+			}
+			return description
+		},
 	},
 }
 </script>
