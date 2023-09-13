@@ -64,9 +64,10 @@ const getActionForNodes = (nodes: Node[]): MoveCopyAction => {
  * @param {Node} node The node to copy/move
  * @param {Node} destination The destination to copy/move the node to
  * @param {MoveCopyAction} method The method to use for the copy/move
+ * @param {boolean} overwrite Whether to overwrite the destination if it exists
  * @return {Promise<void>} A promise that resolves when the copy/move is done
  */
-export const handleCopyMoveNodeTo = async (node: Node, destination: Node, method: MoveCopyAction.COPY | MoveCopyAction.MOVE) => {
+export const handleCopyMoveNodeTo = async (node: Node, destination: Node, method: MoveCopyAction.COPY | MoveCopyAction.MOVE, overwrite = false) => {
 	if (!destination) {
 		return
 	}
@@ -98,13 +99,17 @@ export const handleCopyMoveNodeTo = async (node: Node, destination: Node, method
 				url: encodeURI(node.source),
 				headers: {
 					Destination: destinationUrl,
-					Overwrite: 'F', // Do not overwrite
+					Overwrite: overwrite ? undefined : 'F',
 				},
 			})
 		} catch (error) {
 			if (error instanceof AxiosError) {
 				if (error?.response?.status === 412) {
 					throw new Error(t('files', 'A file or folder with that name already exists in this folder'))
+				} else if (error?.response?.status === 423) {
+					throw new Error(t('files', 'The files is locked'))
+				} else if (error?.response?.status === 404) {
+					throw new Error(t('files', 'The file does not exist anymore'))
 				} else if (error.message) {
 					throw new Error(error.message)
 				}
@@ -188,8 +193,7 @@ const openFilePickerForAction = async (action: MoveCopyAction, dir = '/', node: 
 
 		const picker = filePicker.build()
 		picker.pick().catch(() => {
-			debugger
-			reject(new Error('cancelled'))
+			reject(new Error(t('files', 'Cancelled move or copy operation')))
 		})
 	})
 }

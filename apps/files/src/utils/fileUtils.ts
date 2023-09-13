@@ -55,18 +55,18 @@ export const getSummaryFor = (nodes: Node[]): string => {
 	const fileCount = nodes.filter(node => node.type === FileType.File).length
 	const folderCount = nodes.filter(node => node.type === FileType.Folder).length
 
-	if (fileCount === 0 && folderCount === 1) {
-		return t('files', '1 folder')
-	} else if (fileCount === 1 && folderCount === 0) {
-		return t('files', '1 file')
+	if (fileCount === 0 && folderCount > 0) {
+		return n('files', '1 folder', '{folderCount} folders', folderCount, { folderCount })
+	} else if (folderCount === 0 && fileCount > 0) {
+		return n('files', '1 file', '{fileCount} files', fileCount, { fileCount })
 	}
 
 	if (fileCount === 1) {
-		return t('files', '1 file and {folderCount} folders', { folderCount })
+		return n('files', '1 file and {folderCount} folder', '1 file and {folderCount} folders', folderCount, { folderCount })
 	}
 
 	if (folderCount === 1) {
-		return t('files', '{fileCount} files and 1 folder', { fileCount })
+		return n('files', '{fileCount} file and 1 folder', '{fileCount} files and 1 folder', fileCount, { fileCount })
 	}
 
 	return t('files', '{fileCount} files and {folderCount} folders', { fileCount, folderCount })
