@@ -565,7 +565,7 @@ class OC_App {
 		$supportedApps = $this->getSupportedApps();
 
 		foreach ($installedApps as $app) {
-			if (array_search($app, $blacklist) === false) {
+			if (!in_array($app, $blacklist)) {
 				$info = $appManager->getAppInfo($app, false, $langCode);
 				if (!is_array($info)) {
 					\OCP\Util::writeLog('core', 'Could not read app info file for app "' . $app . '"', ILogger::ERROR);

@@ -447,7 +447,7 @@ class Cache implements ICache {
 		$params = [];
 		$extensionParams = [];
 		foreach ($data as $name => $value) {
-			if (array_search($name, $fields) !== false) {
+			if (in_array($name, $fields)) {
 				if ($name === 'path') {
 					$params['path_hash'] = md5($value);
 				} elseif ($name === 'mimetype') {
@@ -467,7 +467,7 @@ class Cache implements ICache {
 				}
 				$params[$name] = $value;
 			}
-			if (array_search($name, $extensionFields) !== false) {
+			if (in_array($name, $extensionFields)) {
 				$extensionParams[$name] = $value;
 			}
 		}
