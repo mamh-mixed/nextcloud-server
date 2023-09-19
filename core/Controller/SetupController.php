@@ -33,6 +33,7 @@ namespace OC\Core\Controller;
 
 use OC\Setup;
 use OCP\ILogger;
+use OCP\Util;
 
 class SetupController {
 	private string $autoConfigFile;
@@ -94,6 +95,13 @@ class SetupController {
 			'dbtype' => '',
 		];
 		$parameters = array_merge($defaults, $post);
+
+		Util::addStyle('server', null);
+
+		// include common nextcloud webpack bundle
+		Util::addScript('core', 'common');
+		Util::addScript('core', 'main');
+		Util::addTranslations('core');
 
 		\OC_Template::printGuestPage('', 'installation', $parameters);
 	}
