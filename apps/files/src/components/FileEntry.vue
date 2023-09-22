@@ -60,11 +60,14 @@
 				</template>
 
 				<!-- Decorative image, should not be aria documented -->
-				<img v-else-if="previewUrl && !backgroundFailed"
+				<img v-else-if="previewUrl && backgroundFailed !== true"
 					ref="previewImg"
+					alt=""
 					class="files-list__row-icon-preview"
+					:class="{'files-list__row-icon-preview--loaded': backgroundFailed === false}"
 					:src="previewUrl"
-					@error="backgroundFailed = true">
+					@error="backgroundFailed = true"
+					@load="backgroundFailed = false">
 
 				<FileIcon v-else />
 
@@ -309,8 +312,7 @@ export default Vue.extend({
 
 	data() {
 		return {
-			dummyPreviewUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>',
-			backgroundFailed: false,
+			backgroundFailed: undefined,
 			loading: '',
 			dragover: false,
 
@@ -651,7 +653,7 @@ export default Vue.extend({
 			this.loading = ''
 
 			// Reset background state
-			this.backgroundFailed = false
+			this.backgroundFailed = undefined
 			if (this.$refs.previewImg) {
 				this.$refs.previewImg.src = ''
 			}
@@ -1030,7 +1032,7 @@ tr {
 }
 
 /* Preview not loaded animation effect */
-.files-list__row-icon-preview:not([style*='background']) {
+.files-list__row-icon-preview:not(.files-list__row-icon-preview--loaded) {
     background: var(--color-loading-dark);
 	// animation: preview-gradient-fade 1.2s ease-in-out infinite;
 }
