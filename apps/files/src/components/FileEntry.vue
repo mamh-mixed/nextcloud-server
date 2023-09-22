@@ -80,7 +80,7 @@
 			</span>
 
 			<!-- Rename input -->
-			<form v-show="isRenaming"
+			<form v-if="isRenaming"
 				v-on-click-outside="stopRenaming"
 				:aria-hidden="!isRenaming"
 				:aria-label="t('files', 'Rename file')"
@@ -97,7 +97,7 @@
 					@keyup.esc="stopRenaming" />
 			</form>
 
-			<a v-show="!isRenaming"
+			<a v-else
 				ref="basename"
 				:aria-hidden="isRenaming"
 				class="files-list__row-name-link"
