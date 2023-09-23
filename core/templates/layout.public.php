@@ -95,7 +95,7 @@ if (isset($template) && $template->getActionCount() !== 0) {
 		</h1>
 		<?php print_unescaped($_['content']); ?>
 	</main>
-	<?php if (isset($template) && $template->getFooterVisible()) { ?>
+	<?php if (isset($template) && $template->getFooterVisible() && ($theme->getLongFooter() !== '' || $_['showSimpleSignUpLink'])) { ?>
 	<footer>
 		<p><?php print_unescaped($theme->getLongFooter()); ?></p>
 		<?php
