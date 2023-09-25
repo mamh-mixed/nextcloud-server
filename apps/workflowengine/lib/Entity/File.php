@@ -31,6 +31,7 @@ use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\GenericEvent;
 use OCP\Files\InvalidPathException;
 use OCP\Files\IRootFolder;
+use OCP\Files\Mount\IMountManager;
 use OCP\Files\Node;
 use OCP\Files\NotFoundException;
 use OCP\IL10N;
@@ -74,6 +75,8 @@ class File implements IEntity, IDisplayText, IUrl, IIcon, IContextPortation {
 	private $userManager;
 	/** @var UserMountCache */
 	private $userMountCache;
+	/** @var IMountManager */
+	private $mountManager;
 
 	public function __construct(
 		IL10N $l10n,
@@ -82,7 +85,8 @@ class File implements IEntity, IDisplayText, IUrl, IIcon, IContextPortation {
 		IUserSession $userSession,
 		ISystemTagManager $tagManager,
 		IUserManager $userManager,
-		UserMountCache $userMountCache
+		UserMountCache $userMountCache,
+		IMountManager $mountManager
 	) {
 		$this->l10n = $l10n;
 		$this->urlGenerator = $urlGenerator;
@@ -91,6 +95,7 @@ class File implements IEntity, IDisplayText, IUrl, IIcon, IContextPortation {
 		$this->tagManager = $tagManager;
 		$this->userManager = $userManager;
 		$this->userMountCache = $userMountCache;
+		$this->mountManager = $mountManager;
 	}
 
 	public function getName(): string {
@@ -143,12 +148,18 @@ class File implements IEntity, IDisplayText, IUrl, IIcon, IContextPortation {
 				$fileId = $node->getId();
 			}
 
-			$mounts = $this->userMountCache->getMountsForFileId($fileId, $uid);
-			foreach ($mounts as $mount) {
+			$mountInfos = $this->userMountCache->getMountsForFileId($fileId, $uid);
+			foreach ($mountInfos as $mountInfo) {
+				$mount = $this->mountManager->getMountFromMountInfo($mountInfo);
+				if (!empty($mount->getStorage()->getCache()->get($fileId))) {
+					return true;
+				}
+				/*
 				$userFolder = $this->root->getUserFolder($uid);
 				if (!empty($userFolder->getById($fileId))) {
 					return true;
 				}
+				*/
 			}
 			return false;
 		} catch (NotFoundException $e) {

@@ -33,6 +33,7 @@ use OCP\Cache\CappedMemoryCache;
 use OC\Files\Filesystem;
 use OC\Files\SetupManager;
 use OC\Files\SetupManagerFactory;
+use OCP\Files\Config\ICachedMountInfo;
 use OCP\Files\Mount\IMountManager;
 use OCP\Files\Mount\IMountPoint;
 use OCP\Files\NotFoundException;
@@ -225,5 +226,22 @@ class Manager implements IMountManager {
 				return in_array($mount->getMountProvider(), $mountProviders);
 			});
 		}
+	}
+
+	/**
+	 * Return the mount matching a cached mount info (or mount file info)
+	 *
+	 * @param ICachedMountInfo $info
+	 *
+	 * @return IMountPoint
+	 * @throws NotFoundException
+	 */
+	public function getMountFromMountInfo(ICachedMountInfo $info): IMountPoint {
+		foreach ($this->mounts as $mount) {
+			if ($mount->getStorageRootId() === $info->getRootId()) {
+				return $mount;
+			}
+		}
+		throw new NotFoundException("No mount for mount info with rootId " . (string)$info->getRootId());
 	}
 }
