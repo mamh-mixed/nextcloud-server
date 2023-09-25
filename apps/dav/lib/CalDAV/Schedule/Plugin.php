@@ -476,7 +476,7 @@ EOF;
 	 * @param string $ignoreUID
 	 * @return bool
 	 */
-	public function isAvailableAtTime(string $email, \DateTimeInterface $start, \DateTimeInterface $end, string $ignoreUID = null):bool {
+	private function isAvailableAtTime(string $email, \DateTimeInterface $start, \DateTimeInterface $end, string $ignoreUID):bool {
 		// This method is heavily inspired by Sabre\CalDAV\Schedule\Plugin::scheduleLocalDelivery
 		// and Sabre\CalDAV\Schedule\Plugin::getFreeBusyForEmail
 
@@ -507,7 +507,7 @@ EOF;
 			}
 
 			// Getting the list of object uris within the time-range
-			$query = [
+			$urls = $node->calendarQuery([
 				'name' => 'VCALENDAR',
 				'comp-filters' => [
 					[
@@ -520,34 +520,30 @@ EOF;
 						'comp-filters' => [],
 						'prop-filters' => [],
 					],
+					[
+						'name' => 'VEVENT',
+						'is-not-defined' => false,
+						'time-range' => null,
+						'comp-filters' => [],
+						'prop-filters' => [
+							[
+								'name' => 'UID',
+								'is-not-defined' => false,
+								'time-range' => null,
+								'text-match' => [
+									'value' => $ignoreUID,
+									'negate-condition' => true,
+									'collation' => 'i;octet',
+								],
+								'param-filters' => [],
+							],
+						]
+					],
 				],
 				'prop-filters' => [],
 				'is-not-defined' => false,
 				'time-range' => null,
-			];
-
-			if($ignoreUID !== null) {
-				$query['comp-filters'][] = [
-					'name' => 'VEVENT',
-					'is-not-defined' => false,
-					'time-range' => null,
-					'comp-filters' => [],
-					'prop-filters' => [
-						[
-							'name' => 'UID',
-							'is-not-defined' => false,
-							'time-range' => null,
-							'text-match' => [
-								'value' => $ignoreUID,
-								'negate-condition' => true,
-								'collation' => 'i;octet',
-							],
-							'param-filters' => [],
-						],
-					]
-				];
-			}
-			$urls = $node->calendarQuery($query);
+			]);
 
 			foreach ($urls as $url) {
 				$objects[] = $node->getChild($url)->get();
@@ -577,7 +573,6 @@ EOF;
 		}
 
 		$result = $generator->getResult();
-
 		if (!isset($result->VFREEBUSY)) {
 			return false;
 		}
