@@ -26,6 +26,9 @@ declare(strict_types=1);
  */
 namespace OCA\UserStatus\Service;
 
+use OC\Calendar\CalendarQuery;
+use OCA\DAV\CalDAV\InvitationResponse\InvitationResponseServer;
+use OCA\DAV\CalDAV\Schedule\Plugin;
 use OCA\UserStatus\Db\UserStatus;
 use OCA\UserStatus\Db\UserStatusMapper;
 use OCA\UserStatus\Exception\InvalidClearAtException;
@@ -39,6 +42,15 @@ use OCP\DB\Exception;
 use OCP\IConfig;
 use OCP\IEmojiHelper;
 use OCP\UserStatus\IUserStatus;
+use Sabre\CalDAV\Xml\Property\ScheduleCalendarTransp;
+use Sabre\DAV\Exception\NotFound;
+use Sabre\VObject\Component;
+use Sabre\VObject\Component\VCalendar;
+use Sabre\VObject\Component\VEvent;
+use Sabre\VObject\FreeBusyGenerator;
+use Sabre\VObject\Parameter;
+use Sabre\VObject\Property;
+use Sabre\VObject\Reader;
 
 /**
  * Class StatusService
@@ -150,6 +162,7 @@ class StatusService {
 	 * @throws DoesNotExistException
 	 */
 	public function findByUserId(string $userId):UserStatus {
+		$calendarStatus = $this->getCalendarAvailability($userId);
 		return $this->processStatus($this->mapper->findByUserId($userId));
 	}
 
@@ -561,4 +574,299 @@ class StatusService {
 		// For users that matched restore the previous status
 		$this->mapper->restoreBackupStatuses($restoreIds);
 	}
+
+	public function getFreebusy($userId, $vavilability) {
+		$user = $this->userManager->get($userId);
+		$email = $user->getEMailAddress();
+		$server = new InvitationResponseServer();
+		$server = $server->getServer();
+
+		/** @var \OCA\DAV\CalDAV\Schedule\Plugin $schedulingPlugin */
+		$schedulingPlugin = $server->getPlugin('caldav-schedule');
+		$caldavNS = '{'.$schedulingPlugin::NS_CALDAV.'}';
+
+		/** @var \Sabre\DAVACL\Plugin $aclPlugin */
+		$aclPlugin = $server->getPlugin('acl');
+		if ('mailto:' === substr($email, 0, 7)) {
+			$email = substr($email, 7);
+		}
+
+		$result = $aclPlugin->principalSearch(
+			['{http://sabredav.org/ns}email-address' => $email],
+			[
+				'{DAV:}principal-URL',
+				$caldavNS.'calendar-home-set',
+				$caldavNS.'schedule-inbox-URL',
+				'{http://sabredav.org/ns}email-address',
+			]
+		);
+
+		if (!count($result) || !isset($result[0][200][$caldavNS.'schedule-inbox-URL'])) {
+			throw new NotFound();
+		}
+
+		$inboxUrl = $result[0][200][$caldavNS.'schedule-inbox-URL']->getHref();
+
+		// Do we have permission?
+		$aclPlugin->checkPrivileges($inboxUrl, $caldavNS.'schedule-query-freebusy');
+
+
+		$uris = [];
+		$calendarTimeZone = new DateTimeZone('UTC');
+
+		$calendars = $this->calendarManager->getCalendarsForPrincipal('principals/users/' . $userId);
+		$query = new CalendarQuery('principals/users/' . $userId);
+
+		foreach ($calendars as $calendarObjects) {
+			if (!$calendarObjects instanceof \OCP\Calendar\ICalendar) {
+				continue;
+			}
+
+			$sct = $calendarObjects->getSchedulingTransparency();
+
+			if (!empty($sct) && ScheduleCalendarTransp::TRANSPARENT == $sct->getValue()) {
+				// If a calendar is marked as 'transparent', it means we must
+				// ignore it for free-busy purposes.
+				continue;
+			}
+
+			$ctz = $calendarObjects->getSchedulingTimezone();
+			if (!empty($ctz)) {
+				$vtimezoneObj = Reader::read($ctz);
+				$calendarTimeZone = $vtimezoneObj->VTIMEZONE->getTimeZone();
+
+				// Destroy circular references so PHP can garbage collect the object.
+				$vtimezoneObj->destroy();
+			}
+			$query->addSearchCalendar($calendarObjects->getUri());
+		}
+		$dtStart = new \DateTimeImmutable();
+		$dtEnd = new \DateTimeImmutable('+24 hours');
+		$query->setTimerangeStart($dtStart);
+		$query->setTimerangeEnd($dtEnd);
+		$results = $this->calendarManager->searchForPrincipal($query);
+
+		$calendarObjects = new VCalendar();
+		foreach ($results as $objectInfo) {
+			$vEvent = new VEvent($calendarObjects, 'VEVENT');
+			foreach($objectInfo['objects'] as $component) {
+				foreach ($component as $key =>  $value) {
+					$vEvent->add($key, $value[0]);
+				}
+			}
+			$calendarObjects->add($vEvent);
+		}
+
+		$vcalendar = new VCalendar();
+		$vcalendar->METHOD = 'REQUEST';
+
+		$generator = new FreeBusyGenerator();
+		$generator->setObjects($calendarObjects);
+		$generator->setTimeRange($dtStart, $dtEnd);
+		$generator->setBaseObject($vcalendar);
+		$generator->setTimeZone($calendarTimeZone);
+
+		if (!empty($vavilability)) {
+			$generator->setVAvailability(
+				Reader::read(
+					$vavilability
+				)
+			);
+		}
+		$result = $generator->getResult();
+
+		// We have the intersection of VAVILABILITY and all VEVENTS in all calendars now
+		// We only need to handle the first result.
+
+		if (!isset($result->VFREEBUSY)) {
+			return ['status' => IUserStatus::ONLINE, $this->time->getDateTime('+1hour')->getTimestamp()];
+		}
+
+		/** @var Component $freeBusyComponent */
+		$freeBusyComponent = $result->VFREEBUSY;
+		$freeBusyProperties = $freeBusyComponent->select('FREEBUSY');
+		// If there is no Free-busy property at all, the time-range is empty and available
+		if (count($freeBusyProperties) === 0) {
+			return ['FREE', $this->time->getDateTime('+1hour')->getTimestamp()];
+		}
+
+		// If more than one Free-Busy property was returned, it means that an event
+		// starts or ends inside this time-range, so it's not available and we return false
+		if (count($freeBusyProperties) > 1) {
+			return ['BUSY', $dtEnd->getTimestamp()];
+		}
+
+		/** @var Property $freeBusyProperty */
+		$freeBusyProperty = $freeBusyProperties[0];
+		if (!$freeBusyProperty->offsetExists('FBTYPE')) {
+			// If there is no FBTYPE, it means it's busy
+			return false;
+		}
+
+		$fbTypeParameter = $freeBusyProperty->offsetGet('FBTYPE');
+		if (!($fbTypeParameter instanceof Parameter)) {
+			return false;
+		}
+
+		return (strcasecmp($fbTypeParameter->getValue(), 'FREE') === 0);
+
+	}
+
+	private function getCalendarAvailability(string $userId) {
+		$user = $this->userManager->get($userId);
+		$email = $user->getEMailAddress();
+		$server = new InvitationResponseServer();
+		$server = $server->getServer();
+
+		/** @var \OCA\DAV\CalDAV\Schedule\Plugin $schedulingPlugin */
+		$schedulingPlugin = $server->getPlugin('caldav-schedule');
+		$caldavNS = '{'.$schedulingPlugin::NS_CALDAV.'}';
+
+		/** @var \Sabre\DAVACL\Plugin $aclPlugin */
+		$aclPlugin = $server->getPlugin('acl');
+		if ('mailto:' === substr($email, 0, 7)) {
+			$email = substr($email, 7);
+		}
+
+		$result = $aclPlugin->principalSearch(
+			['{http://sabredav.org/ns}email-address' => $email],
+			[
+				'{DAV:}principal-URL',
+				$caldavNS.'calendar-home-set',
+				$caldavNS.'schedule-inbox-URL',
+				'{http://sabredav.org/ns}email-address',
+			]
+		);
+
+		if (!count($result) || !isset($result[0][200][$caldavNS.'schedule-inbox-URL'])) {
+			throw new NotFound();
+		}
+
+		$inboxUrl = $result[0][200][$caldavNS.'schedule-inbox-URL']->getHref();
+
+		// Do we have permission?
+		$aclPlugin->checkPrivileges($inboxUrl, $caldavNS.'schedule-query-freebusy');
+		$calendarTimeZone = new DateTimeZone('UTC');
+
+		$calendars = $this->calendarManager->getCalendarsForPrincipal('principals/users/' . $userId);
+		$query = new CalendarQuery('principals/users/' . $userId);
+
+		foreach ($calendars as $calendarObjects) {
+			if (!$calendarObjects instanceof \OCP\Calendar\ICalendar) {
+				continue;
+			}
+
+			$sct = $calendarObjects->getSchedulingTransparency();
+
+			if (!empty($sct) && ScheduleCalendarTransp::TRANSPARENT == $sct->getValue()) {
+				// If a calendar is marked as 'transparent', it means we must
+				// ignore it for free-busy purposes.
+				continue;
+			}
+
+			$ctz = $calendarObjects->getSchedulingTimezone();
+			if (!empty($ctz)) {
+				$vtimezoneObj = Reader::read($ctz);
+				$calendarTimeZone = $vtimezoneObj->VTIMEZONE->getTimeZone();
+
+				// Destroy circular references so PHP can garbage collect the object.
+				$vtimezoneObj->destroy();
+			}
+			$query->addSearchCalendar($calendarObjects->getUri());
+		}
+		$dtStart = new \DateTimeImmutable();
+		$dtEnd = new \DateTimeImmutable('+24 hours');
+		$query->setTimerangeStart($dtStart);
+		$query->setTimerangeEnd($dtEnd);
+		$results = $this->calendarManager->searchForPrincipal($query);
+
+		$calendarObjects = new VCalendar();
+		foreach ($results as $objectInfo) {
+			$vEvent = new VEvent($calendarObjects, 'VEVENT');
+			foreach($objectInfo['objects'] as $component) {
+				foreach ($component as $key =>  $value) {
+					$vEvent->add($key, $value[0]);
+				}
+			}
+			$calendarObjects->add($vEvent);
+		}
+
+		$vcalendar = new VCalendar();
+		$vcalendar->METHOD = 'REQUEST';
+
+		$generator = new FreeBusyGenerator();
+		$generator->setObjects($calendarObjects);
+		$generator->setTimeRange($dtStart, $dtEnd);
+		$generator->setBaseObject($vcalendar);
+		$generator->setTimeZone($calendarTimeZone);
+
+		$vavilability = $this->getAvailabilityFromPropertiesTable($userId);
+		if (!empty($vavilability)) {
+			$generator->setVAvailability(
+				Reader::read(
+					$vavilability
+				)
+			);
+		}
+		$result = $generator->getResult();
+
+		// We have the intersection of VAVILABILITY and all VEVENTS in all calendars now
+		// We only need to handle the first result.
+
+		if (!isset($result->VFREEBUSY)) {
+			return ['status' => IUserStatus::ONLINE, $this->time->getDateTime('+1hour')->getTimestamp()];
+		}
+
+		/** @var Component $freeBusyComponent */
+		$freeBusyComponent = $result->VFREEBUSY;
+		$freeBusyProperties = $freeBusyComponent->select('FREEBUSY');
+		// If there is no Free-busy property at all, the time-range is empty and available
+		if (count($freeBusyProperties) === 0) {
+			return ['FREE', $this->time->getDateTime('+1hour')->getTimestamp()];
+		}
+
+		// If more than one Free-Busy property was returned, it means that an event
+		// starts or ends inside this time-range, so it's not available and we return false
+		if (count($freeBusyProperties) > 1) {
+			return ['BUSY', $dtEnd->getTimestamp()];
+		}
+
+		/** @var Property $freeBusyProperty */
+		$freeBusyProperty = $freeBusyProperties[0];
+		if (!$freeBusyProperty->offsetExists('FBTYPE')) {
+			// If there is no FBTYPE, it means it's busy
+			return false;
+		}
+
+		$fbTypeParameter = $freeBusyProperty->offsetGet('FBTYPE');
+		if (!($fbTypeParameter instanceof Parameter)) {
+			return false;
+		}
+
+		return (strcasecmp($fbTypeParameter->getValue(), 'FREE') === 0);
+	}
+
+	/**
+	 * @param string $userId
+	 * @return false|string
+	 */
+	protected function getAvailabilityFromPropertiesTable(string $userId) {
+		$propertyPath = 'calendars/' . $userId . '/inbox';
+		$propertyName = '{' . Plugin::NS_CALDAV . '}calendar-availability';
+
+		$query = $this->connection->getQueryBuilder();
+		$query->select('propertyvalue')
+			->from('properties')
+			->where($query->expr()->eq('userid', $query->createNamedParameter($userId)))
+			->andWhere($query->expr()->eq('propertypath', $query->createNamedParameter($propertyPath)))
+			->andWhere($query->expr()->eq('propertyname', $query->createNamedParameter($propertyName)))
+			->setMaxResults(1);
+
+		$result = $query->executeQuery();
+		$property = $result->fetchOne();
+		$result->closeCursor();
+
+		return $property;
+	}
+
 }

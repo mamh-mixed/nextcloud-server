@@ -86,6 +86,14 @@ class CalendarImpl implements ICreateFromString, IHandleImipMessage {
 		return $this->calendarInfo['{http://apple.com/ns/ical/}calendar-color'];
 	}
 
+	public function getSchedulingTransparency() {
+		return $this->calendarInfo['{' . \OCA\DAV\CalDAV\Schedule\Plugin::NS_CALDAV . '}schedule-calendar-transp'] ?? '';
+	}
+
+	public function getSchedulingTimezone() {
+		return $this->calendarInfo['{' . \OCA\DAV\CalDAV\Schedule\Plugin::NS_CALDAV . '}calendar-timezone'] ?? '';
+	}
+
 	/**
 	 * @param string $pattern which should match within the $searchProperties
 	 * @param array $searchProperties defines the properties within the query pattern should match

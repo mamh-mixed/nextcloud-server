@@ -36,6 +36,7 @@ use OCA\DAV\CalDAV\CalendarHome;
 use OCP\IConfig;
 use Psr\Log\LoggerInterface;
 use Sabre\CalDAV\ICalendar;
+use Sabre\CalDAV\Schedule\IOutbox;
 use Sabre\DAV\INode;
 use Sabre\DAV\IProperties;
 use Sabre\DAV\PropFind;
@@ -44,6 +45,7 @@ use Sabre\DAV\Xml\Property\LocalHref;
 use Sabre\DAVACL\IPrincipal;
 use Sabre\HTTP\RequestInterface;
 use Sabre\HTTP\ResponseInterface;
+use Sabre\VObject;
 use Sabre\VObject\Component;
 use Sabre\VObject\Component\VCalendar;
 use Sabre\VObject\Component\VEvent;
@@ -474,7 +476,7 @@ EOF;
 	 * @param string $ignoreUID
 	 * @return bool
 	 */
-	private function isAvailableAtTime(string $email, \DateTimeInterface $start, \DateTimeInterface $end, string $ignoreUID):bool {
+	public function isAvailableAtTime(string $email, \DateTimeInterface $start, \DateTimeInterface $end, string $ignoreUID = null):bool {
 		// This method is heavily inspired by Sabre\CalDAV\Schedule\Plugin::scheduleLocalDelivery
 		// and Sabre\CalDAV\Schedule\Plugin::getFreeBusyForEmail
 
@@ -505,7 +507,7 @@ EOF;
 			}
 
 			// Getting the list of object uris within the time-range
-			$urls = $node->calendarQuery([
+			$query = [
 				'name' => 'VCALENDAR',
 				'comp-filters' => [
 					[
@@ -518,30 +520,34 @@ EOF;
 						'comp-filters' => [],
 						'prop-filters' => [],
 					],
-					[
-						'name' => 'VEVENT',
-						'is-not-defined' => false,
-						'time-range' => null,
-						'comp-filters' => [],
-						'prop-filters' => [
-							[
-								'name' => 'UID',
-								'is-not-defined' => false,
-								'time-range' => null,
-								'text-match' => [
-									'value' => $ignoreUID,
-									'negate-condition' => true,
-									'collation' => 'i;octet',
-								],
-								'param-filters' => [],
-							],
-						]
-					],
 				],
 				'prop-filters' => [],
 				'is-not-defined' => false,
 				'time-range' => null,
-			]);
+			];
+
+			if($ignoreUID !== null) {
+				$query['comp-filters'][] = [
+					'name' => 'VEVENT',
+					'is-not-defined' => false,
+					'time-range' => null,
+					'comp-filters' => [],
+					'prop-filters' => [
+						[
+							'name' => 'UID',
+							'is-not-defined' => false,
+							'time-range' => null,
+							'text-match' => [
+								'value' => $ignoreUID,
+								'negate-condition' => true,
+								'collation' => 'i;octet',
+							],
+							'param-filters' => [],
+						],
+					]
+				];
+			}
+			$urls = $node->calendarQuery($query);
 
 			foreach ($urls as $url) {
 				$objects[] = $node->getChild($url)->get();
@@ -571,6 +577,7 @@ EOF;
 		}
 
 		$result = $generator->getResult();
+
 		if (!isset($result->VFREEBUSY)) {
 			return false;
 		}
@@ -629,5 +636,9 @@ EOF;
 		$calendarHome->getCalDAVBackend()->createCalendar($principalUri, $uri, [
 			'{DAV:}displayname' => $displayName,
 		]);
+	}
+
+	public function handleFreeBusyRequest(IOutbox $outbox, VObject\Component $vObject, RequestInterface $request, ResponseInterface $response) {
+		parent::handleFreeBusyRequest($outbox, $vObject, $request, $response);
 	}
 }
