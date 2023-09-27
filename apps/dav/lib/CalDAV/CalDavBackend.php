@@ -2661,7 +2661,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 				->executeQuery();
 
 		$results = [];
-		while (($row = $result->fetch()) !== false) {
+		while (($row = $stmt->fetch()) !== false) {
 			$results[] = [
 				'calendardata' => $row['calendardata'],
 				'uri' => $row['uri'],
