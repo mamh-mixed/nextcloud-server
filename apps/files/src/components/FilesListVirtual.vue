@@ -20,7 +20,8 @@
   -
   -->
 <template>
-	<VirtualList :data-component="FileEntry"
+	<VirtualList :class="{ 'files-list--dragover': dragover }"
+		:data-component="FileEntry"
 		:data-key="'source'"
 		:data-sources="nodes"
 		:item-height="56"
@@ -30,7 +31,11 @@
 			nodes,
 			filesListWidth,
 		}"
-		:scroll-to-index="scrollToIndex">
+		:scroll-to-index="scrollToIndex"
+		@dragover.native="onDragOver"
+		@dragleave.native="onDragLeave"
+		@drop.native="onDrop"
+		@mouseleave.native="onDragLeave">
 		<!-- Accessibility description and headers -->
 		<template #before>
 			<!-- Accessibility description -->
@@ -49,6 +54,10 @@
 
 		<!-- Thead-->
 		<template #header>
+			<!-- Drag and drop notice -->
+			<DragAndDropNotice v-if="canUpload && filesListWidth >= 512" :dragover="dragover" />
+
+			<!-- Table header and sort buttons -->
 			<FilesListTableHeader :files-list-width="filesListWidth"
 				:is-mtime-available="isMtimeAvailable"
 				:is-size-available="isSizeAvailable"
@@ -68,14 +77,17 @@
 
 <script lang="ts">
 import type { PropType } from 'vue'
-import type { Node } from '@nextcloud/files'
+import type { Node as NcNode } from '@nextcloud/files'
 
 import { translate as t, translatePlural as n } from '@nextcloud/l10n'
-import { getFileListHeaders, Folder, View } from '@nextcloud/files'
+import { getFileListHeaders, Folder, View, Permission } from '@nextcloud/files'
 import { showError } from '@nextcloud/dialogs'
+import { getUploader } from '@nextcloud/upload'
+import { join } from 'path'
 import Vue from 'vue'
 
 import { action as sidebarAction } from '../actions/sidebarAction.ts'
+import DragAndDropNotice from './DragAndDropNotice.vue'
 import FileEntry from './FileEntry.vue'
 import FilesListHeader from './FilesListHeader.vue'
 import FilesListTableFooter from './FilesListTableFooter.vue'
@@ -88,6 +100,7 @@ export default Vue.extend({
 	name: 'FilesListVirtual',
 
 	components: {
+		DragAndDropNotice,
 		FilesListHeader,
 		FilesListTableHeader,
 		FilesListTableFooter,
@@ -108,7 +121,7 @@ export default Vue.extend({
 			required: true,
 		},
 		nodes: {
-			type: Array as PropType<Node[]>,
+			type: Array as PropType<NcNode[]>,
 			required: true,
 		},
 	},
@@ -118,6 +131,7 @@ export default Vue.extend({
 			FileEntry,
 			headers: getFileListHeaders(),
 			scrollToIndex: 0,
+			dragover: false,
 		}
 	},
 
@@ -163,6 +177,10 @@ export default Vue.extend({
 
 			return [...this.headers].sort((a, b) => a.order - b.order)
 		},
+
+		canUpload() {
+			return this.currentFolder && (this.currentFolder.permissions & Permission.CREATE) !== 0
+		},
 	},
 
 	mounted() {
@@ -184,7 +202,7 @@ export default Vue.extend({
 
 			// Open the sidebar for the given URL fileid
 			// iif we just loaded the app.
-			const node = this.nodes.find(n => n.fileid === this.fileId) as Node
+			const node = this.nodes.find(n => n.fileid === this.fileId) as NcNode
 			if (node && sidebarAction?.enabled?.([node], this.currentView)) {
 				logger.debug('Opening sidebar on file ' + node.path, { node })
 				sidebarAction.exec(node, this.currentView, this.currentFolder.path)
@@ -195,6 +213,58 @@ export default Vue.extend({
 	methods: {
 		getFileId(node) {
 			return node.fileid
+		},
+
+		onDragOver(event: DragEvent) {
+			// Detect if we're only dragging existing files or not
+			const isForeignFile = event.dataTransfer?.types.includes('Files')
+			if (isForeignFile) {
+				// Only show if we're dragging on the main files list and not the rows
+				if (!this.$el.querySelector('tbody')?.contains(event.target as Node)) {
+					this.dragover = true
+				} else {
+					this.dragover = false
+				}
+			}
+
+			event.preventDefault()
+			event.stopPropagation()
+
+			// If reaching top, scroll up
+			const firstVisible = this.$el.querySelector('.files-list__row--visible') as HTMLElement
+			const firstSibling = firstVisible?.previousElementSibling as HTMLElement
+			if ([firstVisible, firstSibling].some(elmt => elmt?.contains(event.target as Node))) {
+				this.$el.scrollTop = this.$el.scrollTop - 25
+			}
+
+			// If reaching bottom, scroll down
+			const lastVisible = [...this.$el.querySelectorAll('.files-list__row--visible')].pop() as HTMLElement
+			const nextSibling = lastVisible?.nextElementSibling as HTMLElement
+			if ([lastVisible, nextSibling].some(elmt => elmt?.contains(event.target as Node))) {
+				this.$el.scrollTop = this.$el.scrollTop + 25
+			}
+		},
+		onDragLeave() {
+			this.dragover = false
+		},
+
+		onDrop(event: DragEvent) {
+			this.dragover = false
+
+			if (this.$el.querySelector('tbody')?.contains(event.target as Node)) {
+				return
+			}
+
+			event.preventDefault()
+			event.stopPropagation()
+
+			if (event.dataTransfer && event.dataTransfer.files?.length > 0) {
+				const uploader = getUploader()
+				event.dataTransfer.files.forEach((file: File) => {
+					uploader.upload(join(this.currentFolder.path, file.name), file)
+				})
+				logger.debug(`Uploading files to ${this.currentFolder.path}`)
+			}
 		},
 
 		t,
@@ -216,6 +286,10 @@ export default Vue.extend({
 	overflow: auto;
 	height: 100%;
 
+	&--dragover {
+		background-color: var(--color-background-dark);
+	}
+
 	&::v-deep {
 		// Table head, body and footer
 		tbody {
@@ -232,6 +306,15 @@ export default Vue.extend({
 			flex-direction: column;
 		}
 
+		.files-list__thead,
+		.files-list__tfoot {
+			display: flex;
+			flex-direction: column;
+			width: 100%;
+			background-color: var(--color-main-background);
+
+		}
+
 		// Table header
 		.files-list__thead {
 			// Pinned on top when scrolling
@@ -240,12 +323,9 @@ export default Vue.extend({
 			top: 0;
 		}
 
-		.files-list__thead,
+		// Table footer
 		.files-list__tfoot {
-			display: flex;
-			width: 100%;
-			background-color: var(--color-main-background);
-
+			min-height: 300px;
 		}
 
 		tr {

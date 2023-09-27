@@ -38,6 +38,10 @@
 				@update:checked="setConfig('crop_image_previews', $event)">
 				{{ t('files', 'Crop image previews') }}
 			</NcCheckboxRadioSwitch>
+			<NcCheckboxRadioSwitch :checked="userConfig.show_dropzone"
+				@update:checked="setConfig('show_dropzone', $event)">
+				{{ t('files', 'Show the drop zone') }}
+			</NcCheckboxRadioSwitch>
 		</NcAppSettingsSection>
 
 		<!-- Settings API-->

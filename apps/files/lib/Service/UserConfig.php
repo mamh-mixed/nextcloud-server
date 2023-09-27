@@ -47,6 +47,12 @@ class UserConfig {
 			'default' => true,
 			'allowed' => [true, false],
 		],
+		[
+			// Whether to show a dropzone above the files list or not
+			'key' => 'show_dropzone',
+			'default' => true,
+			'allowed' => [true, false],
+		],
 	];
 
 	protected IConfig $config;

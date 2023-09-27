@@ -188,12 +188,13 @@
 <script lang='ts'>
 import type { PropType } from 'vue'
 
-import { emit } from '@nextcloud/event-bus'
-import { extname } from 'path'
+import { emit, subscribe } from '@nextcloud/event-bus'
+import { extname, join } from 'path'
 import { generateUrl } from '@nextcloud/router'
-import { getFileActions, DefaultType, FileType, formatFileSize, Permission, Folder, File, FileAction, NodeStatus, Node } from '@nextcloud/files'
+import { getFileActions, DefaultType, FileType, formatFileSize, Permission, Folder, File as NcFile, FileAction, NodeStatus, Node } from '@nextcloud/files'
+import { getUploader } from '@nextcloud/upload'
 import { showError, showSuccess } from '@nextcloud/dialogs'
-import { translate } from '@nextcloud/l10n'
+import { translate as t } from '@nextcloud/l10n'
 import { Type as ShareType } from '@nextcloud/sharing'
 import { vOnClickOutside } from '@vueuse/components'
 import axios from '@nextcloud/axios'
@@ -274,7 +275,7 @@ export default Vue.extend({
 			default: false,
 		},
 		source: {
-			type: [Folder, File, Node] as PropType<Node>,
+			type: [Folder, NcFile, Node] as PropType<Node>,
 			required: true,
 		},
 		index: {
@@ -365,7 +366,7 @@ export default Vue.extend({
 		size() {
 			const size = parseInt(this.source.size, 10) || 0
 			if (typeof size !== 'number' || size < 0) {
-				return this.t('files', 'Pending')
+				return t('files', 'Pending')
 			}
 			return formatFileSize(size, true)
 		},
@@ -387,7 +388,7 @@ export default Vue.extend({
 			if (this.source.mtime) {
 				return moment(this.source.mtime).fromNow()
 			}
-			return this.t('files_trashbin', 'A long time ago')
+			return t('files_trashbin', 'A long time ago')
 		},
 		mtimeTitle() {
 			if (this.source.mtime) {
@@ -436,7 +437,7 @@ export default Vue.extend({
 		linkTo() {
 			if (this.source.attributes.failed) {
 				return {
-					title: this.t('files', 'This node is unavailable'),
+					title: t('files', 'This node is unavailable'),
 					is: 'span',
 				}
 			}
@@ -454,7 +455,7 @@ export default Vue.extend({
 				return {
 					download: this.source.basename,
 					href: this.source.source,
-					title: this.t('files', 'Download file {name}', { name: this.displayName }),
+					title: t('files', 'Download file {name}', { name: this.displayName }),
 				}
 			}
 
@@ -487,7 +488,7 @@ export default Vue.extend({
 
 			try {
 				const previewUrl = this.source.attributes.previewUrl
-					|| generateUrl('/core/preview?fileid={fileid}', {
+					|| generateUrl('/core/preview?fileId={fileid}', {
 						fileid: this.fileid,
 					})
 				const url = new URL(window.location.origin + previewUrl)
@@ -677,13 +678,13 @@ export default Vue.extend({
 				}
 
 				if (success) {
-					showSuccess(this.t('files', '"{displayName}" action executed successfully', { displayName }))
+					showSuccess(t('files', '"{displayName}" action executed successfully', { displayName }))
 					return
 				}
-				showError(this.t('files', '"{displayName}" action failed', { displayName }))
+				showError(t('files', '"{displayName}" action failed', { displayName }))
 			} catch (e) {
 				logger.error('Error while executing action', { action, e })
-				showError(this.t('files', '"{displayName}" action failed', { displayName }))
+				showError(t('files', '"{displayName}" action failed', { displayName }))
 			} finally {
 				// Reset the loading marker
 				this.loading = ''
@@ -781,15 +782,15 @@ export default Vue.extend({
 		isFileNameValid(name) {
 			const trimmedName = name.trim()
 			if (trimmedName === '.' || trimmedName === '..') {
-				throw new Error(this.t('files', '"{name}" is an invalid file name.', { name }))
+				throw new Error(t('files', '"{name}" is an invalid file name.', { name }))
 			} else if (trimmedName.length === 0) {
-				throw new Error(this.t('files', 'File name cannot be empty.'))
+				throw new Error(t('files', 'NcFile name cannot be empty.'))
 			} else if (trimmedName.indexOf('/') !== -1) {
-				throw new Error(this.t('files', '"/" is not allowed inside a file name.'))
+				throw new Error(t('files', '"/" is not allowed inside a file name.'))
 			} else if (trimmedName.match(OC.config.blacklist_files_regex)) {
-				throw new Error(this.t('files', '"{name}" is not an allowed filetype.', { name }))
+				throw new Error(t('files', '"{name}" is not an allowed filetype.', { name }))
 			} else if (this.checkIfNodeExists(name)) {
-				throw new Error(this.t('files', '{newName} already exists.', { newName: name }))
+				throw new Error(t('files', '{newName} already exists.', { newName: name }))
 			}
 
 			return true
@@ -830,7 +831,7 @@ export default Vue.extend({
 			const oldSource = this.source.source
 			const newName = this.newName.trim?.() || ''
 			if (newName === '') {
-				showError(this.t('files', 'Name cannot be empty'))
+				showError(t('files', 'Name cannot be empty'))
 				return
 			}
 
@@ -841,7 +842,7 @@ export default Vue.extend({
 
 			// Checking if already exists
 			if (this.checkIfNodeExists(newName)) {
-				showError(this.t('files', 'Another entry with the same name already exists'))
+				showError(t('files', 'Another entry with the same name already exists'))
 				return
 			}
 
@@ -864,7 +865,7 @@ export default Vue.extend({
 				// Success 🎉
 				emit('files:node:updated', this.source)
 				emit('files:node:renamed', this.source)
-				showSuccess(this.t('files', 'Renamed "{oldName}" to "{newName}"', { oldName, newName }))
+				showSuccess(t('files', 'Renamed "{oldName}" to "{newName}"', { oldName, newName }))
 
 				// Reset the renaming store
 				this.stopRenaming()
@@ -878,15 +879,15 @@ export default Vue.extend({
 
 				// TODO: 409 means current folder does not exist, redirect ?
 				if (error?.response?.status === 404) {
-					showError(this.t('files', 'Could not rename "{oldName}", it does not exist any more', { oldName }))
+					showError(t('files', 'Could not rename "{oldName}", it does not exist any more', { oldName }))
 					return
 				} else if (error?.response?.status === 412) {
-					showError(this.t('files', 'The name "{newName}" is already used in the folder "{dir}". Please choose a different name.', { newName, dir: this.currentDir }))
+					showError(t('files', 'The name "{newName}" is already used in the folder "{dir}". Please choose a different name.', { newName, dir: this.currentDir }))
 					return
 				}
 
 				// Unknown error
-				showError(this.t('files', 'Could not rename "{oldName}"', { oldName }))
+				showError(t('files', 'Could not rename "{oldName}"', { oldName }))
 			} finally {
 				this.loading = false
 				Vue.set(this.source, 'status', undefined)
@@ -914,9 +915,8 @@ export default Vue.extend({
 
 		onDragOver(event: DragEvent) {
 			this.dragover = this.canDrop
+
 			if (!this.canDrop) {
-				event.preventDefault()
-				event.stopPropagation()
 				event.dataTransfer.dropEffect = 'none'
 				return
 			}
@@ -929,9 +929,13 @@ export default Vue.extend({
 			}
 		},
 		onDragLeave(event: DragEvent) {
-			if (this.$el.contains(event.target) && event.target !== this.$el) {
+			// Counter bubbling, make sure we're ending the drag
+			// only when we're leaving the current element
+			const currentTarget = event.currentTarget as HTMLElement
+			if (currentTarget?.contains(event.relatedTarget as HTMLElement)) {
 				return
 			}
+
 			this.dragover = false
 		},
 
@@ -960,7 +964,7 @@ export default Vue.extend({
 				.map(fileid => this.filesStore.getNode(fileid)) as Node[]
 
 			const image = await getDragAndDropPreview(nodes)
-			event.dataTransfer.setDragImage(image, -10, -10)
+			event.dataTransfer?.setDragImage(image, -10, -10)
 		},
 		onDragEnd() {
 			this.draggingStore.reset()
@@ -969,6 +973,9 @@ export default Vue.extend({
 		},
 
 		async onDrop(event) {
+			event.preventDefault()
+			event.stopPropagation()
+
 			// If another button is pressed, cancel it
 			// This allows cancelling the drag with the right click
 			if (!this.canDrop || event.button !== 0) {
@@ -980,6 +987,16 @@ export default Vue.extend({
 
 			logger.debug('Dropped', { event, selection: this.draggingFiles })
 
+			// Check whether we're uploading files
+			if (event.dataTransfer?.files?.length > 0) {
+				const uploader = getUploader()
+				event.dataTransfer.files.forEach((file: File) => {
+					uploader.upload(join(this.source.path, file.name), file)
+				})
+				logger.debug(`Uploading files to ${this.source.path}`)
+				return
+			}
+
 			const nodes = this.draggingFiles.map(fileid => this.filesStore.getNode(fileid)) as Node[]
 			nodes.forEach(async (node: Node) => {
 				Vue.set(node, 'status', NodeStatus.LOADING)
@@ -989,9 +1006,9 @@ export default Vue.extend({
 				} catch (error) {
 					logger.error('Error while moving file', { error })
 					if (isCopy) {
-						showError(this.t('files', 'Could not copy {file}. {message}', { file: node.basename, message: error.message || '' }))
+						showError(t('files', 'Could not copy {file}. {message}', { file: node.basename, message: error.message || '' }))
 					} else {
-						showError(this.t('files', 'Could not move {file}. {message}', { file: node.basename, message: error.message || '' }))
+						showError(t('files', 'Could not move {file}. {message}', { file: node.basename, message: error.message || '' }))
 					}
 				} finally {
 					Vue.set(node, 'status', undefined)
@@ -1006,7 +1023,7 @@ export default Vue.extend({
 			}
 		},
 
-		t: translate,
+		t,
 		formatFileSize,
 	},
 })
