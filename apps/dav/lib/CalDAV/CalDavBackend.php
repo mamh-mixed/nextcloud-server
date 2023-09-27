@@ -2660,9 +2660,9 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 				->where($query->expr()->eq('principaluri', $query->createNamedParameter($principalUri)))
 				->executeQuery();
 
-		$result = [];
+		$results = [];
 		while (($row = $result->fetch()) !== false) {
-			$result[] = [
+			$results[] = [
 				'calendardata' => $row['calendardata'],
 				'uri' => $row['uri'],
 				'lastmodified' => $row['lastmodified'],
@@ -2672,7 +2672,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 		}
 		$stmt->closeCursor();
 
-		return $result;
+		return $results;
 	}
 
 	/**
