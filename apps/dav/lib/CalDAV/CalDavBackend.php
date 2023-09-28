@@ -1934,6 +1934,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 			if ($start === null || !($start instanceof DateTimeInterface) || $end === null || !($end instanceof DateTimeInterface)) {
 				// No filter required
 				$calendarObjects[] = $row;
+				continue;
 			}
 
 			$isValid = $this->validateFilterForObject($row, [
