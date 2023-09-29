@@ -314,6 +314,10 @@ export default {
 		},
 
 		async handleScrollEnd() {
+			// Do not load more users when all have already been loaded
+			if (this.users.length % 25 !== 0) {
+				return
+			}
 			await this.loadUsers()
 		},
 
