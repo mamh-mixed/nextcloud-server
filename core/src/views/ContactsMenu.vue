@@ -27,16 +27,41 @@
 		<template #trigger>
 			<Contacts :size="20" />
 		</template>
-		<div id="contactsmenu-menu" />
+		<div id="contactsmenu-menu">
+			<label for="contactsmenu-search">{{ t('core', 'Search contacts') }}</label>
+			<input id="contactsmenu-search" v-model="searchTerm" type="search">
+			<div v-if="error">
+				<div class="icon-search" />
+				<h2>{{ t('core', 'Could not load your contacts') }}</h2>
+			</div>
+			<div v-else-if="loadingText">
+				<div class="icon-loading" />
+				<h2>{{ loadingText }}</h2>
+			</div>
+			<div v-else-if="contacts.length === 0" class="emptycontent">
+				<div class="icon-search" />
+				<h2>{{ t('core', 'No contacts found') }}</h2>
+			</div>
+			<div v-else id="contactsmenu-contacts" />
+			<div v-if="contactsAppEnabled" class="footer">
+				<a :href="contactsAppURL">{{ t('core', 'Show all contacts …') }}</a>
+			</div>
+			<div v-else-if="canInstallApp" class="footer">
+				<a :href="contactsAppMgmtURL">{{ t('core', 'Install the Contacts app') }}</a>
+			</div>
+		</div>
 	</NcHeaderMenu>
 </template>
 
 <script>
-import NcHeaderMenu from '@nextcloud/vue/dist/Components/NcHeaderMenu.js'
-
+import axios from '@nextcloud/axios'
 import Contacts from 'vue-material-design-icons/Contacts.vue'
+import { getCurrentUser } from '@nextcloud/auth'
+import { generateUrl } from '@nextcloud/router'
+import NcHeaderMenu from '@nextcloud/vue/dist/Components/NcHeaderMenu.js'
+import { translate as t } from '@nextcloud/l10n'
 
-import OC from '../OC/index.js'
+import logger from '../logger.js'
 
 export default {
 	name: 'ContactsMenu',
@@ -47,21 +72,35 @@ export default {
 	},
 
 	data() {
+		const user = getCurrentUser()
 		return {
-			contactsMenu: null,
+			contactsAppEnabled: true,
+			contactsAppURL: generateUrl('/apps/contacts'),
+			contactsAppMgmtURL: generateUrl('/settings/apps/social/contacts'),
+			canInstallApp: user.isAdmin,
+			contacts: [],
+			loadingText: false,
+			error: false,
+			searchTerm: '',
 		}
-	},
-
-	mounted() {
-		// eslint-disable-next-line no-new
-		this.contactsMenu = new OC.ContactsMenu({
-			el: '#contactsmenu-menu',
-		})
 	},
 
 	methods: {
 		handleOpen() {
-			this.contactsMenu?.loadContacts()
+			this.loadingText = t('core', 'Loading your contacts …')
+		},
+		async getContacts(searchTerm) {
+			try {
+				const { data } = await axios.post(generateUrl('/contactsmenu/contacts'), {
+					filter: searchTerm
+				})
+			} catch (error) {
+				logger.error('could not load contacts', {
+					error,
+					searchTerm,
+				})
+				this.error = true
+			}
 		},
 	},
 }
@@ -79,6 +118,7 @@ export default {
 		.emptycontent {
 			margin-top: 5vh !important;
 			margin-bottom: 1.5vh;
+
 			.icon-loading,
 			.icon-search {
 				display: inline-block;
@@ -162,6 +202,7 @@ export default {
 				&:not(button) {
 					padding: 14px;
 				}
+
 				img {
 					filter: var(--background-invert-if-dark);
 				}
@@ -191,6 +232,7 @@ export default {
 				top: 47px;
 				margin-right: 13px;
 			}
+
 			.popovermenu::after {
 				right: 2px;
 			}
