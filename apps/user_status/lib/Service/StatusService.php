@@ -26,6 +26,7 @@ declare(strict_types=1);
  */
 namespace OCA\UserStatus\Service;
 
+use DateTimeZone;
 use OC\Calendar\CalendarQuery;
 use OCA\DAV\CalDAV\InvitationResponse\InvitationResponseServer;
 use OCA\DAV\CalDAV\Schedule\Plugin;
@@ -38,12 +39,16 @@ use OCA\UserStatus\Exception\InvalidStatusTypeException;
 use OCA\UserStatus\Exception\StatusMessageTooLongException;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\Calendar\ICalendar;
+use OCP\Calendar\IManager;
 use OCP\DB\Exception;
 use OCP\IConfig;
 use OCP\IEmojiHelper;
+use OCP\IUserManager;
 use OCP\UserStatus\IUserStatus;
 use Sabre\CalDAV\Xml\Property\ScheduleCalendarTransp;
-use Sabre\DAV\Exception\NotFound;
+use Sabre\DAV\Exception\NotAuthenticated;
+use Sabre\DAVACL\Exception\NeedPrivileges;
 use Sabre\VObject\Component;
 use Sabre\VObject\Component\VCalendar;
 use Sabre\VObject\Component\VEvent;
@@ -51,6 +56,7 @@ use Sabre\VObject\FreeBusyGenerator;
 use Sabre\VObject\Parameter;
 use Sabre\VObject\Property;
 use Sabre\VObject\Reader;
+use function in_array;
 
 /**
  * Class StatusService
@@ -58,26 +64,9 @@ use Sabre\VObject\Reader;
  * @package OCA\UserStatus\Service
  */
 class StatusService {
-
-	/** @var UserStatusMapper */
-	private $mapper;
-
-	/** @var ITimeFactory */
-	private $timeFactory;
-
-	/** @var PredefinedStatusService */
-	private $predefinedStatusService;
-
-	private IEmojiHelper $emojiHelper;
-
-	/** @var bool */
-	private $shareeEnumeration;
-
-	/** @var bool */
-	private $shareeEnumerationInGroupOnly;
-
-	/** @var bool */
-	private $shareeEnumerationPhone;
+	private bool $shareeEnumeration;
+	private bool $shareeEnumerationInGroupOnly;
+	private bool $shareeEnumerationPhone;
 
 	/**
 	 * List of priorities ordered by their priority
@@ -106,18 +95,17 @@ class StatusService {
 	/** @var int */
 	public const MAXIMUM_MESSAGE_LENGTH = 80;
 
-	public function __construct(UserStatusMapper $mapper,
-								ITimeFactory $timeFactory,
-								PredefinedStatusService $defaultStatusService,
-								IEmojiHelper $emojiHelper,
-								IConfig $config) {
-		$this->mapper = $mapper;
-		$this->timeFactory = $timeFactory;
-		$this->predefinedStatusService = $defaultStatusService;
-		$this->emojiHelper = $emojiHelper;
-		$this->shareeEnumeration = $config->getAppValue('core', 'shareapi_allow_share_dialog_user_enumeration', 'yes') === 'yes';
-		$this->shareeEnumerationInGroupOnly = $this->shareeEnumeration && $config->getAppValue('core', 'shareapi_restrict_user_enumeration_to_group', 'no') === 'yes';
-		$this->shareeEnumerationPhone = $this->shareeEnumeration && $config->getAppValue('core', 'shareapi_restrict_user_enumeration_to_phone', 'no') === 'yes';
+	public function __construct(private UserStatusMapper $mapper,
+								private ITimeFactory $timeFactory,
+								private PredefinedStatusService $predefinedStatusService,
+								private IEmojiHelper $emojiHelper,
+								private IConfig $config,
+								private IUserManager $userManager,
+								private ITimeFactory $time,
+								private IManager $calendarManager) {
+		$this->shareeEnumeration = $this->config->getAppValue('core', 'shareapi_allow_share_dialog_user_enumeration', 'yes') === 'yes';
+		$this->shareeEnumerationInGroupOnly = $this->shareeEnumeration && $this->config->getAppValue('core', 'shareapi_restrict_user_enumeration_to_group', 'no') === 'yes';
+		$this->shareeEnumerationPhone = $this->shareeEnumeration && $this->config->getAppValue('core', 'shareapi_restrict_user_enumeration_to_phone', 'no') === 'yes';
 	}
 
 	/**
@@ -162,7 +150,7 @@ class StatusService {
 	 * @throws DoesNotExistException
 	 */
 	public function findByUserId(string $userId):UserStatus {
-		$calendarStatus = $this->getCalendarAvailability($userId);
+		$this->processCalendarAvailability($userId);
 		return $this->processStatus($this->mapper->findByUserId($userId));
 	}
 
@@ -196,7 +184,7 @@ class StatusService {
 		}
 
 		// Check if status-type is valid
-		if (!\in_array($status, self::PRIORITY_ORDERED_STATUSES, true)) {
+		if (!in_array($status, self::PRIORITY_ORDERED_STATUSES, true)) {
 			throw new InvalidStatusTypeException('Status-type "' . $status . '" is not supported');
 		}
 		if ($statusTimestamp === null) {
@@ -272,7 +260,7 @@ class StatusService {
 										 string $messageId,
 										 bool $createBackup): void {
 		// Check if status-type is valid
-		if (!\in_array($status, self::PRIORITY_ORDERED_STATUSES, true)) {
+		if (!in_array($status, self::PRIORITY_ORDERED_STATUSES, true)) {
 			throw new InvalidStatusTypeException('Status-type "' . $status . '" is not supported');
 		}
 
@@ -575,13 +563,21 @@ class StatusService {
 		$this->mapper->restoreBackupStatuses($restoreIds);
 	}
 
-	public function getFreebusy($userId, $vavilability) {
+	private function processCalendarAvailability(string $userId) {
 		$user = $this->userManager->get($userId);
+		if($user === null) {
+			return false;
+		}
+
 		$email = $user->getEMailAddress();
+		if($email === null) {
+			return false;
+		}
+
 		$server = new InvitationResponseServer();
 		$server = $server->getServer();
 
-		/** @var \OCA\DAV\CalDAV\Schedule\Plugin $schedulingPlugin */
+		/** @var Plugin $schedulingPlugin */
 		$schedulingPlugin = $server->getPlugin('caldav-schedule');
 		$caldavNS = '{'.$schedulingPlugin::NS_CALDAV.'}';
 
@@ -602,23 +598,28 @@ class StatusService {
 		);
 
 		if (!count($result) || !isset($result[0][200][$caldavNS.'schedule-inbox-URL'])) {
-			throw new NotFound();
+			return false;
 		}
 
 		$inboxUrl = $result[0][200][$caldavNS.'schedule-inbox-URL']->getHref();
 
 		// Do we have permission?
-		$aclPlugin->checkPrivileges($inboxUrl, $caldavNS.'schedule-query-freebusy');
+		try {
+			$aclPlugin->checkPrivileges($inboxUrl, $caldavNS.'schedule-query-freebusy');
+		} catch (NeedPrivileges | NotAuthenticated $exception) {
+			return false;
+		}
 
-
-		$uris = [];
 		$calendarTimeZone = new DateTimeZone('UTC');
-
 		$calendars = $this->calendarManager->getCalendarsForPrincipal('principals/users/' . $userId);
+		if(empty($calendars)) {
+			return false;
+		}
+
 		$query = new CalendarQuery('principals/users/' . $userId);
 
 		foreach ($calendars as $calendarObjects) {
-			if (!$calendarObjects instanceof \OCP\Calendar\ICalendar) {
+			if (!$calendarObjects instanceof ICalendar) {
 				continue;
 			}
 
@@ -640,11 +641,16 @@ class StatusService {
 			}
 			$query->addSearchCalendar($calendarObjects->getUri());
 		}
+
+		// Query the next hour
 		$dtStart = new \DateTimeImmutable();
-		$dtEnd = new \DateTimeImmutable('+24 hours');
+		$dtEnd = new \DateTimeImmutable('+1 hours');
 		$query->setTimerangeStart($dtStart);
 		$query->setTimerangeEnd($dtEnd);
 		$results = $this->calendarManager->searchForPrincipal($query);
+		if(empty($results)) {
+			return false;
+		}
 
 		$calendarObjects = new VCalendar();
 		foreach ($results as $objectInfo) {
@@ -666,6 +672,7 @@ class StatusService {
 		$generator->setBaseObject($vcalendar);
 		$generator->setTimeZone($calendarTimeZone);
 
+		$vavilability = $this->mapper->getAvailabilityFromPropertiesTable($userId);
 		if (!empty($vavilability)) {
 			$generator->setVAvailability(
 				Reader::read(
@@ -677,9 +684,8 @@ class StatusService {
 
 		// We have the intersection of VAVILABILITY and all VEVENTS in all calendars now
 		// We only need to handle the first result.
-
 		if (!isset($result->VFREEBUSY)) {
-			return ['status' => IUserStatus::ONLINE, $this->time->getDateTime('+1hour')->getTimestamp()];
+			return false;
 		}
 
 		/** @var Component $freeBusyComponent */
@@ -687,20 +693,20 @@ class StatusService {
 		$freeBusyProperties = $freeBusyComponent->select('FREEBUSY');
 		// If there is no Free-busy property at all, the time-range is empty and available
 		if (count($freeBusyProperties) === 0) {
-			return ['FREE', $this->time->getDateTime('+1hour')->getTimestamp()];
+			return false;
 		}
 
 		// If more than one Free-Busy property was returned, it means that an event
 		// starts or ends inside this time-range, so it's not available and we return false
 		if (count($freeBusyProperties) > 1) {
-			return ['BUSY', $dtEnd->getTimestamp()];
+			return true;
 		}
 
 		/** @var Property $freeBusyProperty */
 		$freeBusyProperty = $freeBusyProperties[0];
 		if (!$freeBusyProperty->offsetExists('FBTYPE')) {
 			// If there is no FBTYPE, it means it's busy
-			return false;
+			return true;
 		}
 
 		$fbTypeParameter = $freeBusyProperty->offsetGet('FBTYPE');
@@ -708,165 +714,8 @@ class StatusService {
 			return false;
 		}
 
-		return (strcasecmp($fbTypeParameter->getValue(), 'FREE') === 0);
+		$free = (strcasecmp($fbTypeParameter->getValue(), 'FREE') === 0);
 
+		return $free;
 	}
-
-	private function getCalendarAvailability(string $userId) {
-		$user = $this->userManager->get($userId);
-		$email = $user->getEMailAddress();
-		$server = new InvitationResponseServer();
-		$server = $server->getServer();
-
-		/** @var \OCA\DAV\CalDAV\Schedule\Plugin $schedulingPlugin */
-		$schedulingPlugin = $server->getPlugin('caldav-schedule');
-		$caldavNS = '{'.$schedulingPlugin::NS_CALDAV.'}';
-
-		/** @var \Sabre\DAVACL\Plugin $aclPlugin */
-		$aclPlugin = $server->getPlugin('acl');
-		if ('mailto:' === substr($email, 0, 7)) {
-			$email = substr($email, 7);
-		}
-
-		$result = $aclPlugin->principalSearch(
-			['{http://sabredav.org/ns}email-address' => $email],
-			[
-				'{DAV:}principal-URL',
-				$caldavNS.'calendar-home-set',
-				$caldavNS.'schedule-inbox-URL',
-				'{http://sabredav.org/ns}email-address',
-			]
-		);
-
-		if (!count($result) || !isset($result[0][200][$caldavNS.'schedule-inbox-URL'])) {
-			throw new NotFound();
-		}
-
-		$inboxUrl = $result[0][200][$caldavNS.'schedule-inbox-URL']->getHref();
-
-		// Do we have permission?
-		$aclPlugin->checkPrivileges($inboxUrl, $caldavNS.'schedule-query-freebusy');
-		$calendarTimeZone = new DateTimeZone('UTC');
-
-		$calendars = $this->calendarManager->getCalendarsForPrincipal('principals/users/' . $userId);
-		$query = new CalendarQuery('principals/users/' . $userId);
-
-		foreach ($calendars as $calendarObjects) {
-			if (!$calendarObjects instanceof \OCP\Calendar\ICalendar) {
-				continue;
-			}
-
-			$sct = $calendarObjects->getSchedulingTransparency();
-
-			if (!empty($sct) && ScheduleCalendarTransp::TRANSPARENT == $sct->getValue()) {
-				// If a calendar is marked as 'transparent', it means we must
-				// ignore it for free-busy purposes.
-				continue;
-			}
-
-			$ctz = $calendarObjects->getSchedulingTimezone();
-			if (!empty($ctz)) {
-				$vtimezoneObj = Reader::read($ctz);
-				$calendarTimeZone = $vtimezoneObj->VTIMEZONE->getTimeZone();
-
-				// Destroy circular references so PHP can garbage collect the object.
-				$vtimezoneObj->destroy();
-			}
-			$query->addSearchCalendar($calendarObjects->getUri());
-		}
-		$dtStart = new \DateTimeImmutable();
-		$dtEnd = new \DateTimeImmutable('+24 hours');
-		$query->setTimerangeStart($dtStart);
-		$query->setTimerangeEnd($dtEnd);
-		$results = $this->calendarManager->searchForPrincipal($query);
-
-		$calendarObjects = new VCalendar();
-		foreach ($results as $objectInfo) {
-			$vEvent = new VEvent($calendarObjects, 'VEVENT');
-			foreach($objectInfo['objects'] as $component) {
-				foreach ($component as $key =>  $value) {
-					$vEvent->add($key, $value[0]);
-				}
-			}
-			$calendarObjects->add($vEvent);
-		}
-
-		$vcalendar = new VCalendar();
-		$vcalendar->METHOD = 'REQUEST';
-
-		$generator = new FreeBusyGenerator();
-		$generator->setObjects($calendarObjects);
-		$generator->setTimeRange($dtStart, $dtEnd);
-		$generator->setBaseObject($vcalendar);
-		$generator->setTimeZone($calendarTimeZone);
-
-		$vavilability = $this->getAvailabilityFromPropertiesTable($userId);
-		if (!empty($vavilability)) {
-			$generator->setVAvailability(
-				Reader::read(
-					$vavilability
-				)
-			);
-		}
-		$result = $generator->getResult();
-
-		// We have the intersection of VAVILABILITY and all VEVENTS in all calendars now
-		// We only need to handle the first result.
-
-		if (!isset($result->VFREEBUSY)) {
-			return ['status' => IUserStatus::ONLINE, $this->time->getDateTime('+1hour')->getTimestamp()];
-		}
-
-		/** @var Component $freeBusyComponent */
-		$freeBusyComponent = $result->VFREEBUSY;
-		$freeBusyProperties = $freeBusyComponent->select('FREEBUSY');
-		// If there is no Free-busy property at all, the time-range is empty and available
-		if (count($freeBusyProperties) === 0) {
-			return ['FREE', $this->time->getDateTime('+1hour')->getTimestamp()];
-		}
-
-		// If more than one Free-Busy property was returned, it means that an event
-		// starts or ends inside this time-range, so it's not available and we return false
-		if (count($freeBusyProperties) > 1) {
-			return ['BUSY', $dtEnd->getTimestamp()];
-		}
-
-		/** @var Property $freeBusyProperty */
-		$freeBusyProperty = $freeBusyProperties[0];
-		if (!$freeBusyProperty->offsetExists('FBTYPE')) {
-			// If there is no FBTYPE, it means it's busy
-			return false;
-		}
-
-		$fbTypeParameter = $freeBusyProperty->offsetGet('FBTYPE');
-		if (!($fbTypeParameter instanceof Parameter)) {
-			return false;
-		}
-
-		return (strcasecmp($fbTypeParameter->getValue(), 'FREE') === 0);
-	}
-
-	/**
-	 * @param string $userId
-	 * @return false|string
-	 */
-	protected function getAvailabilityFromPropertiesTable(string $userId) {
-		$propertyPath = 'calendars/' . $userId . '/inbox';
-		$propertyName = '{' . Plugin::NS_CALDAV . '}calendar-availability';
-
-		$query = $this->connection->getQueryBuilder();
-		$query->select('propertyvalue')
-			->from('properties')
-			->where($query->expr()->eq('userid', $query->createNamedParameter($userId)))
-			->andWhere($query->expr()->eq('propertypath', $query->createNamedParameter($propertyPath)))
-			->andWhere($query->expr()->eq('propertyname', $query->createNamedParameter($propertyName)))
-			->setMaxResults(1);
-
-		$result = $query->executeQuery();
-		$property = $result->fetchOne();
-		$result->closeCursor();
-
-		return $property;
-	}
-
 }
