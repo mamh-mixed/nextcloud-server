@@ -34,7 +34,7 @@
 				<div class="icon-search" />
 				<h2>{{ t('core', 'Could not load your contacts') }}</h2>
 			</div>
-			<div v-else-if="loadingText">
+			<div v-else-if="loadingText" class="emptycontent">
 				<div class="icon-loading" />
 				<h2>{{ loadingText }}</h2>
 			</div>
@@ -42,12 +42,18 @@
 				<div class="icon-search" />
 				<h2>{{ t('core', 'No contacts found') }}</h2>
 			</div>
-			<div v-else id="contactsmenu-contacts" />
-			<div v-if="contactsAppEnabled" class="footer">
-				<a :href="contactsAppURL">{{ t('core', 'Show all contacts …') }}</a>
-			</div>
-			<div v-else-if="canInstallApp" class="footer">
-				<a :href="contactsAppMgmtURL">{{ t('core', 'Install the Contacts app') }}</a>
+			<div v-else class="content">
+				<div id="contactsmenu-contacts">
+					<ul>
+						<Contact v-for="contact in contacts" :key="contact.id" :contact="contact" />
+					</ul>
+				</div>
+				<div v-if="contactsAppEnabled" class="footer">
+					<a :href="contactsAppURL">{{ t('core', 'Show all contacts …') }}</a>
+				</div>
+				<div v-else-if="canInstallApp" class="footer">
+					<a :href="contactsAppMgmtURL">{{ t('core', 'Install the Contacts app') }}</a>
+				</div>
 			</div>
 		</div>
 	</NcHeaderMenu>
@@ -61,12 +67,14 @@ import { generateUrl } from '@nextcloud/router'
 import NcHeaderMenu from '@nextcloud/vue/dist/Components/NcHeaderMenu.js'
 import { translate as t } from '@nextcloud/l10n'
 
+import Contact from '../components/ContactsMenu/Contact.vue'
 import logger from '../logger.js'
 
 export default {
 	name: 'ContactsMenu',
 
 	components: {
+		Contact,
 		Contacts,
 		NcHeaderMenu,
 	},
@@ -86,14 +94,17 @@ export default {
 	},
 
 	methods: {
-		handleOpen() {
-			this.loadingText = t('core', 'Loading your contacts …')
+		async handleOpen() {
+			await this.getContacts('')
 		},
 		async getContacts(searchTerm) {
+			this.loadingText = t('core', 'Loading your contacts …')
 			try {
-				const { data } = await axios.post(generateUrl('/contactsmenu/contacts'), {
+				const { data: { contacts } } = await axios.post(generateUrl('/contactsmenu/contacts'), {
 					filter: searchTerm
 				})
+				this.contacts = contacts
+				this.loadingText = false
 			} catch (error) {
 				logger.error('could not load contacts', {
 					error,
@@ -128,13 +139,13 @@ export default {
 		label[for="contactsmenu-search"] {
 			font-weight: bold;
 			font-size: 19px;
-			margin-left: 22px;
+			margin-left: 13px;
 		}
 
 		#contactsmenu-search {
-			width: calc(100% - 16px);
-			margin: 8px;
+			width: 100%;
 			height: 34px;
+			margin: 8px 0;
 		}
 
 		.content {
@@ -173,7 +184,7 @@ export default {
 			.avatar {
 				height: 32px;
 				width: 32px;
-				display: inline-block;
+				display: inherit;
 			}
 
 			.body {
@@ -198,10 +209,6 @@ export default {
 				height: 16px;
 				opacity: .5;
 				cursor: pointer;
-
-				&:not(button) {
-					padding: 14px;
-				}
 
 				img {
 					filter: var(--background-invert-if-dark);

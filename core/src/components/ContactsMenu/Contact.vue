@@ -1,0 +1,117 @@
+<!--
+  - @copyright 2023 Christoph Wurst <christoph@winzerhof-wurst.at>
+  -
+  - @author 2023 Christoph Wurst <christoph@winzerhof-wurst.at>
+  -
+  - @license GNU AGPL version 3 or any later version
+  -
+  - This program is free software: you can redistribute it and/or modify
+  - it under the terms of the GNU Affero General Public License as
+  - published by the Free Software Foundation, either version 3 of the
+  - License, or (at your option) any later version.
+  -
+  - This program is distributed in the hope that it will be useful,
+  - but WITHOUT ANY WARRANTY; without even the implied warranty of
+  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  - GNU Affero General Public License for more details.
+  -
+  - You should have received a copy of the GNU Affero General Public License
+  - along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+
+<template>
+	<li class="contact">
+		<a v-if="contact.profileUrl && contact.avatar"
+			class="profile-link--avatar"
+			:href="contact.profileUrl">
+			<NcAvatar class="avatar"
+				:is-no-user="true"
+				:display-name="contact.avatarLabel"
+				:url="contact.avatar" />
+		</a>
+		<a v-else-if="contact.profileUrl"
+			class="profile-link--avatar"
+			:href="contact.profileUrl">
+			<NcAvatar class="avatar"
+				:is-no-user="true"
+				:display-name="contact.avatarLabel" />
+		</a>
+		<NcAvatar v-else-if="contact.avatar"
+			class="avatar"
+			:is-no-user="true"
+			:display-name="contact.avatarLabel"
+			:url="contact.avatar" />
+		<NcAvatar v-else
+			class="avatar"
+			:is-no-user="true"
+			:display-name="contact.avatarLabel" />
+
+		<a class="body"
+			:href="contact.profileUrl || contact.topAction?.hyperlink">
+			<div class="full-name">{{ contact.fullName }}</div>
+			<div class="last-message">{{ contact.lastMessage }}</div>
+			<div class="email-address">{{ contact.emailAddresses[0] }}</div>
+		</a>
+		<NcActions v-if="actions.length"
+			:inline="contact.topAction ? 1 : 0">
+			<template v-for="(action, idx) in actions"
+				>
+				<NcActionLink v-if="action.hyperlink !== '#'" :key="idx" :href="action.hyperlink" class="other-actions">
+					<template #icon>
+						<img class="contact__action__icon" :src="action.icon">
+					</template>
+					{{ action.title }}
+				</NcActionLink>
+				<NcActionText v-else :key="idx" class="other-actions">
+					<template #icon>
+						<img class="contact__action__icon" :src="action.icon">
+					</template>
+					{{ action.title }}
+				</NcActionText>
+			</template>
+		</NcActions>
+	</li>
+</template>
+
+<script>
+import NcActionLink from '@nextcloud/vue/dist/Components/NcActionLink.js'
+import NcActionText from '@nextcloud/vue/dist/Components/NcActionText.js'
+import NcActions from '@nextcloud/vue/dist/Components/NcActions.js'
+import NcAvatar from '@nextcloud/vue/dist/Components/NcAvatar.js'
+
+export default {
+	name: 'Contact',
+	components: {
+		NcActionLink,
+		NcActionText,
+		NcActions,
+		NcAvatar,
+	},
+	props: {
+		contact: {
+			required: true,
+			type: Object,
+		},
+	},
+	computed: {
+		actions() {
+			if (this.contact.topAction) {
+				return [this.contact.topAction, ...this.contact.actions]
+			}
+			return this.contact.actions
+		},
+	},
+}
+</script>
+
+<style scoped lang="scss">
+.contact {
+	&__action {
+		&__icon {
+			width: 20px;
+			height: 20px;
+			padding: 12px;
+		}
+	}
+}
+</style>
