@@ -33,6 +33,7 @@ use OCA\DAV\CalDAV\InvitationResponse\InvitationResponseServer;
 use OCP\Calendar\Exceptions\CalendarException;
 use OCP\Calendar\ICreateFromString;
 use OCP\Calendar\IHandleImipMessage;
+use OCP\Calendar\ISchedulingInformation;
 use OCP\Constants;
 use Sabre\DAV\Exception\Conflict;
 use Sabre\VObject\Component\VCalendar;
@@ -41,7 +42,7 @@ use Sabre\VObject\ITip\Message;
 use Sabre\VObject\Reader;
 use function Sabre\Uri\split as uriSplit;
 
-class CalendarImpl implements ICreateFromString, IHandleImipMessage {
+class CalendarImpl implements ICreateFromString, IHandleImipMessage, ISchedulingInformation {
 	private CalDavBackend $backend;
 	private Calendar $calendar;
 	/** @var array<string, mixed> */
@@ -86,11 +87,11 @@ class CalendarImpl implements ICreateFromString, IHandleImipMessage {
 		return $this->calendarInfo['{http://apple.com/ns/ical/}calendar-color'];
 	}
 
-	public function getSchedulingTransparency() {
+	public function getSchedulingTransparency(): string {
 		return $this->calendarInfo['{' . \OCA\DAV\CalDAV\Schedule\Plugin::NS_CALDAV . '}schedule-calendar-transp'] ?? '';
 	}
 
-	public function getSchedulingTimezone() {
+	public function getSchedulingTimezone(): string {
 		return $this->calendarInfo['{' . \OCA\DAV\CalDAV\Schedule\Plugin::NS_CALDAV . '}calendar-timezone'] ?? '';
 	}
 

@@ -41,6 +41,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Calendar\ICalendar;
 use OCP\Calendar\IManager;
+use OCP\Calendar\ISchedulingInformation;
 use OCP\DB\Exception;
 use OCP\IConfig;
 use OCP\IEmojiHelper;
@@ -638,7 +639,8 @@ class StatusService {
 		$query = new CalendarQuery('principals/users/' . $userId);
 
 		foreach ($calendars as $calendarObjects) {
-			if (!$calendarObjects instanceof ICalendar) {
+			// We can only work with a calendar if it exposes its scheduling information
+			if (!$calendarObjects instanceof ISchedulingInformation) {
 				continue;
 			}
 
