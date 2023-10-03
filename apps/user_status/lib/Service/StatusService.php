@@ -638,27 +638,28 @@ class StatusService {
 
 		$query = new CalendarQuery('principals/users/' . $userId);
 
-		foreach ($calendars as $calendarObjects) {
+		foreach ($calendars as $calendarObject) {
 			// We can only work with a calendar if it exposes its scheduling information
-			if (!$calendarObjects instanceof ISchedulingInformation) {
+			if (!$calendarObject instanceof ISchedulingInformation) {
 				continue;
 			}
 
-			$sct = $calendarObjects->getSchedulingTransparency();
+			/** @var ISchedulingInformation $calendarObject $sct */
+			$sct = $calendarObject->getSchedulingTransparency();
 			if (!empty($sct) && ScheduleCalendarTransp::TRANSPARENT == $sct->getValue()) {
 				// If a calendar is marked as 'transparent', it means we must
 				// ignore it for free-busy purposes.
 				continue;
 			}
 
-			$ctz = $calendarObjects->getSchedulingTimezone();
+			$ctz = $calendarObject->getSchedulingTimezone();
 			if (!empty($ctz)) {
 				$vtimezoneObj = Reader::read($ctz);
 				$calendarTimeZone = $vtimezoneObj->VTIMEZONE->getTimeZone();
 				// Destroy circular references so PHP can garbage collect the object.
 				$vtimezoneObj->destroy();
 			}
-			$query->addSearchCalendar($calendarObjects->getUri());
+			$query->addSearchCalendar($calendarObject->getUri());
 		}
 
 		// Query the next hour
