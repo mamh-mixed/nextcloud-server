@@ -22,15 +22,17 @@
 
 <template>
 	<NcHeaderMenu id="contactsmenu"
+		class="contactsmenu"
 		:aria-label="t('core', 'Search contacts')"
 		@open="handleOpen">
 		<template #trigger>
 			<Contacts :size="20" />
 		</template>
-		<div id="contactsmenu-menu">
-			<label for="contactsmenu-search">{{ t('core', 'Search contacts') }}</label>
-			<input id="contactsmenu-search"
+		<div class="contactsmenu__menu">
+			<label for="contactsmenu__menu__search">{{ t('core', 'Search contacts') }}</label>
+			<input id="contactsmenu__menu__search"
 				v-model="searchTerm"
+				class="contactsmenu__menu__search"
 				type="search"
 				:placeholder="t('core', 'Search contacts …')"
 				@input="onInputDebounced">
@@ -49,16 +51,16 @@
 					<Magnify />
 				</template>
 			</NcEmptyContent>
-			<div v-else class="content">
+			<div v-else class="contactsmenu__menu__content">
 				<div id="contactsmenu-contacts">
 					<ul>
 						<Contact v-for="contact in contacts" :key="contact.id" :contact="contact" />
 					</ul>
 				</div>
-				<div v-if="contactsAppEnabled" class="footer">
+				<div v-if="contactsAppEnabled" class="contactsmenu__menu__content__footer">
 					<a :href="contactsAppURL">{{ t('core', 'Show all contacts …') }}</a>
 				</div>
-				<div v-else-if="canInstallApp" class="footer">
+				<div v-else-if="canInstallApp" class="contactsmenu__menu__content__footer">
 					<a :href="contactsAppMgmtURL">{{ t('core', 'Install the Contacts app') }}</a>
 				</div>
 			</div>
@@ -96,7 +98,7 @@ export default {
 	data() {
 		const user = getCurrentUser()
 		return {
-			contactsAppEnabled: true,
+			contactsAppEnabled: false,
 			contactsAppURL: generateUrl('/apps/contacts'),
 			contactsAppMgmtURL: generateUrl('/settings/apps/social/contacts'),
 			canInstallApp: user.isAdmin,
@@ -124,10 +126,11 @@ export default {
 			this.error = false
 
 			try {
-				const { data: { contacts } } = await axios.post(generateUrl('/contactsmenu/contacts'), {
+				const { data: { contacts, contactsAppEnabled } } = await axios.post(generateUrl('/contactsmenu/contacts'), {
 					filter: searchTerm,
 				})
 				this.contacts = contacts
+				this.contactsAppEnabled = contactsAppEnabled
 				this.loadingText = false
 			} catch (error) {
 				logger.error('could not load contacts', {
@@ -145,34 +148,34 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-#contactsmenu-menu {
-	/* show 2.5 to 4.5 entries depending on the screen height */
-	height: calc(100vh - 50px * 3);
-	max-height: calc(50px * 6 + 2px + 26px);
-	min-height: calc(50px * 3.5);
-	width: 350px;
+.contactsmenu {
+	&__menu {
+		/* show 2.5 to 4.5 entries depending on the screen height */
+		height: calc(100vh - 50px * 3);
+		max-height: calc(50px * 6 + 2px + 26px);
+		min-height: calc(50px * 3.5);
+		width: 350px;
 
-	&:deep {
-		label[for="contactsmenu-search"] {
+		label[for="contactsmenu__menu__search"] {
 			font-weight: bold;
 			font-size: 19px;
 			margin-left: 13px;
 		}
 
-		#contactsmenu-search {
+		&__search {
 			width: 100%;
 			height: 34px;
 			margin: 8px 0;
 		}
 
-		.content {
+		&__content {
 			/* fixed max height of the parent container without the search input */
 			height: calc(100vh - 50px * 3 - 50px);
 			max-height: calc(50px * 5);
 			min-height: calc(50px * 3.5 - 50px);
 			overflow-y: auto;
 
-			.footer {
+			&__footer {
 				text-align: center;
 
 				a {

@@ -22,35 +22,33 @@
 <template>
 	<li class="contact">
 		<a v-if="contact.profileUrl && contact.avatar"
-			class="profile-link--avatar"
 			:href="contact.profileUrl">
-			<NcAvatar class="avatar"
+			<NcAvatar class="contact__avatar"
 				:is-no-user="true"
 				:display-name="contact.avatarLabel"
 				:url="contact.avatar" />
 		</a>
 		<a v-else-if="contact.profileUrl"
-			class="profile-link--avatar"
 			:href="contact.profileUrl">
-			<NcAvatar class="avatar"
+			<NcAvatar class="contact__avatar"
 				:is-no-user="true"
 				:display-name="contact.avatarLabel" />
 		</a>
 		<NcAvatar v-else-if="contact.avatar"
-			class="avatar"
+			class="contact__avatar"
 			:is-no-user="true"
 			:display-name="contact.avatarLabel"
 			:url="contact.avatar" />
 		<NcAvatar v-else
-			class="avatar"
+			class="contact__avatar"
 			:is-no-user="true"
 			:display-name="contact.avatarLabel" />
 
-		<a class="body"
+		<a class="contact__body"
 			:href="contact.profileUrl || contact.topAction?.hyperlink">
-			<div class="full-name">{{ contact.fullName }}</div>
-			<div class="last-message">{{ contact.lastMessage }}</div>
-			<div class="email-address">{{ contact.emailAddresses[0] }}</div>
+			<div class="contact__body__full-name">{{ contact.fullName }}</div>
+			<div class="contact__body__last-message">{{ contact.lastMessage }}</div>
+			<div class="contact__body__email-address">{{ contact.emailAddresses[0] }}</div>
 		</a>
 		<NcActions v-if="actions.length"
 			:inline="contact.topAction ? 1 : 0">
@@ -126,13 +124,13 @@ export default {
 		}
 	}
 
-	.avatar {
+	&__avatar {
 		height: 32px;
 		width: 32px;
 		display: inherit;
 	}
 
-	.body {
+	&__body {
 		flex-grow: 1;
 		padding-left: 8px;
 		min-width: 0;
@@ -149,7 +147,7 @@ export default {
 		}
 	}
 
-	.top-action, .second-action, .other-actions {
+	.other-actions {
 		width: 16px;
 		height: 16px;
 		opacity: .5;
