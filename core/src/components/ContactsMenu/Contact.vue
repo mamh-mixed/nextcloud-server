@@ -34,15 +34,11 @@
 				:is-no-user="true"
 				:display-name="contact.avatarLabel" />
 		</a>
-		<NcAvatar v-else-if="contact.avatar"
+		<NcAvatar v-else
 			class="contact__avatar"
 			:is-no-user="true"
 			:display-name="contact.avatarLabel"
 			:url="contact.avatar" />
-		<NcAvatar v-else
-			class="contact__avatar"
-			:is-no-user="true"
-			:display-name="contact.avatarLabel" />
 
 		<a class="contact__body"
 			:href="contact.profileUrl || contact.topAction?.hyperlink">
