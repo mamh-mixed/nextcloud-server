@@ -632,8 +632,4 @@ EOF;
 			'{DAV:}displayname' => $displayName,
 		]);
 	}
-
-	public function handleFreeBusyRequest(IOutbox $outbox, VObject\Component $vObject, RequestInterface $request, ResponseInterface $response) {
-		parent::handleFreeBusyRequest($outbox, $vObject, $request, $response);
-	}
 }
