@@ -29,7 +29,10 @@
 		</template>
 		<div id="contactsmenu-menu">
 			<label for="contactsmenu-search">{{ t('core', 'Search contacts') }}</label>
-			<input id="contactsmenu-search" v-model="searchTerm" type="search">
+			<input id="contactsmenu-search"
+				v-model="searchTerm"
+				type="search"
+				:placeholder="t('core', 'Search contacts …')">
 			<div v-if="error">
 				<div class="icon-search" />
 				<h2>{{ t('core', 'Could not load your contacts') }}</h2>
@@ -101,7 +104,7 @@ export default {
 			this.loadingText = t('core', 'Loading your contacts …')
 			try {
 				const { data: { contacts } } = await axios.post(generateUrl('/contactsmenu/contacts'), {
-					filter: searchTerm
+					filter: searchTerm,
 				})
 				this.contacts = contacts
 				this.loadingText = false
@@ -172,76 +175,6 @@ export default {
 
 			&:focus-visible {
 				box-shadow: inset 0 0 0 2px var(--color-main-text) !important; // override rule in core/css/headers.scss #header a:focus-visible
-			}
-		}
-
-		.contact {
-			display: flex;
-			position: relative;
-			align-items: center;
-			padding: 3px 3px 3px 10px;
-
-			.avatar {
-				height: 32px;
-				width: 32px;
-				display: inherit;
-			}
-
-			.body {
-				flex-grow: 1;
-				padding-left: 8px;
-				min-width: 0;
-
-				div {
-					position: relative;
-					width: 100%;
-					overflow-x: hidden;
-					text-overflow: ellipsis;
-				}
-
-				.last-message, .email-address {
-					color: var(--color-text-maxcontrast);
-				}
-			}
-
-			.top-action, .second-action, .other-actions {
-				width: 16px;
-				height: 16px;
-				opacity: .5;
-				cursor: pointer;
-
-				img {
-					filter: var(--background-invert-if-dark);
-				}
-
-				&:hover,
-				&:active,
-				&:focus {
-					opacity: 1;
-				}
-			}
-
-			button.other-actions {
-				width: 44px;
-
-				&:focus {
-					border-color: transparent;
-					box-shadow: 0 0 0 2px var(--color-main-text);
-				}
-
-				&:focus-visible {
-					border-radius: var(--border-radius-pill);
-				}
-			}
-
-			/* actions menu */
-			.menu {
-				top: 47px;
-				margin-right: 13px;
-			}
-
-			.popovermenu::after {
-				right: 2px;
 			}
 		}
 	}

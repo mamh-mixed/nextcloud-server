@@ -54,9 +54,11 @@
 		</a>
 		<NcActions v-if="actions.length"
 			:inline="contact.topAction ? 1 : 0">
-			<template v-for="(action, idx) in actions"
-				>
-				<NcActionLink v-if="action.hyperlink !== '#'" :key="idx" :href="action.hyperlink" class="other-actions">
+			<template v-for="(action, idx) in actions">
+				<NcActionLink v-if="action.hyperlink !== '#'"
+					:key="idx"
+					:href="action.hyperlink"
+					class="other-actions">
 					<template #icon>
 						<img class="contact__action__icon" :src="action.icon">
 					</template>
@@ -106,12 +108,80 @@ export default {
 
 <style scoped lang="scss">
 .contact {
+	display: flex;
+	position: relative;
+	align-items: center;
+	padding: 3px 3px 3px 10px;
+
 	&__action {
 		&__icon {
 			width: 20px;
 			height: 20px;
 			padding: 12px;
 		}
+	}
+
+	.avatar {
+		height: 32px;
+		width: 32px;
+		display: inherit;
+	}
+
+	.body {
+		flex-grow: 1;
+		padding-left: 8px;
+		min-width: 0;
+
+		div {
+			position: relative;
+			width: 100%;
+			overflow-x: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.last-message, .email-address {
+			color: var(--color-text-maxcontrast);
+		}
+	}
+
+	.top-action, .second-action, .other-actions {
+		width: 16px;
+		height: 16px;
+		opacity: .5;
+		cursor: pointer;
+
+		img {
+			filter: var(--background-invert-if-dark);
+		}
+
+		&:hover,
+		&:active,
+		&:focus {
+			opacity: 1;
+		}
+	}
+
+	button.other-actions {
+		width: 44px;
+
+		&:focus {
+			border-color: transparent;
+			box-shadow: 0 0 0 2px var(--color-main-text);
+		}
+
+		&:focus-visible {
+			border-radius: var(--border-radius-pill);
+		}
+	}
+
+	/* actions menu */
+	.menu {
+		top: 47px;
+		margin-right: 13px;
+	}
+
+	.popovermenu::after {
+		right: 2px;
 	}
 }
 </style>
