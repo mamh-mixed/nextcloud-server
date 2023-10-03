@@ -118,6 +118,11 @@ export default {
 			width: 20px;
 			height: 20px;
 			padding: 12px;
+			opacity: 0.5;
+
+			&:hover {
+				opacity: 1;
+			}
 		}
 	}
 

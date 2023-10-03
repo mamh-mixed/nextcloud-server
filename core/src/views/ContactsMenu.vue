@@ -32,19 +32,23 @@
 			<input id="contactsmenu-search"
 				v-model="searchTerm"
 				type="search"
-				:placeholder="t('core', 'Search contacts …')">
-			<div v-if="error">
-				<div class="icon-search" />
-				<h2>{{ t('core', 'Could not load your contacts') }}</h2>
-			</div>
-			<div v-else-if="loadingText" class="emptycontent">
-				<div class="icon-loading" />
-				<h2>{{ loadingText }}</h2>
-			</div>
-			<div v-else-if="contacts.length === 0" class="emptycontent">
-				<div class="icon-search" />
-				<h2>{{ t('core', 'No contacts found') }}</h2>
-			</div>
+				:placeholder="t('core', 'Search contacts …')"
+				@input="onInputDebounced">
+			<NcEmptyContent v-if="error" :name="t('core', 'Could not load your contacts')">
+				<template #icon>
+					<Magnify />
+				</template>
+			</NcEmptyContent>
+			<NcEmptyContent v-else-if="loadingText" :name="loadingText">
+				<template #icon>
+					<NcLoadingIcon />
+				</template>
+			</NcEmptyContent>
+			<NcEmptyContent v-else-if="contacts.length === 0" :name="t('core', 'No contacts found')">
+				<template #icon>
+					<Magnify />
+				</template>
+			</NcEmptyContent>
 			<div v-else class="content">
 				<div id="contactsmenu-contacts">
 					<ul>
@@ -65,9 +69,13 @@
 <script>
 import axios from '@nextcloud/axios'
 import Contacts from 'vue-material-design-icons/Contacts.vue'
+import debounce from 'debounce'
 import { getCurrentUser } from '@nextcloud/auth'
 import { generateUrl } from '@nextcloud/router'
+import Magnify from 'vue-material-design-icons/Magnify.vue'
+import NcEmptyContent from '@nextcloud/vue/dist/Components/NcEmptyContent.js'
 import NcHeaderMenu from '@nextcloud/vue/dist/Components/NcHeaderMenu.js'
+import NcLoadingIcon from '@nextcloud/vue/dist/Components/NcLoadingIcon.js'
 import { translate as t } from '@nextcloud/l10n'
 
 import Contact from '../components/ContactsMenu/Contact.vue'
@@ -79,7 +87,10 @@ export default {
 	components: {
 		Contact,
 		Contacts,
+		Magnify,
+		NcEmptyContent,
 		NcHeaderMenu,
+		NcLoadingIcon,
 	},
 
 	data() {
@@ -90,7 +101,7 @@ export default {
 			contactsAppMgmtURL: generateUrl('/settings/apps/social/contacts'),
 			canInstallApp: user.isAdmin,
 			contacts: [],
-			loadingText: false,
+			loadingText: undefined,
 			error: false,
 			searchTerm: '',
 		}
@@ -101,7 +112,17 @@ export default {
 			await this.getContacts('')
 		},
 		async getContacts(searchTerm) {
-			this.loadingText = t('core', 'Loading your contacts …')
+			if (searchTerm === '') {
+				this.loadingText = t('core', 'Loading your contacts …')
+			} else {
+				this.loadingText = t('core', 'Looking for {term} …', {
+					term: searchTerm,
+				})
+			}
+
+			// Let the user try a different query if the previous one failed
+			this.error = false
+
 			try {
 				const { data: { contacts } } = await axios.post(generateUrl('/contactsmenu/contacts'), {
 					filter: searchTerm,
@@ -116,6 +137,9 @@ export default {
 				this.error = true
 			}
 		},
+		onInputDebounced: debounce(function() {
+			this.getContacts(this.searchTerm)
+		}, 500),
 	},
 }
 </script>
@@ -129,16 +153,6 @@ export default {
 	width: 350px;
 
 	&:deep {
-		.emptycontent {
-			margin-top: 5vh !important;
-			margin-bottom: 1.5vh;
-
-			.icon-loading,
-			.icon-search {
-				display: inline-block;
-			}
-		}
-
 		label[for="contactsmenu-search"] {
 			font-weight: bold;
 			font-size: 19px;
