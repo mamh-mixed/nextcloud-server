@@ -76,6 +76,18 @@ interface IUserStatus {
 	public const MESSAGE_AVAILABILITY = 'availability';
 
 	/**
+	 * @var string
+	 * @since 28.0.0
+	 */
+	public const MESSAGE_CALENDAR_BUSY = 'busy';
+
+	/**
+	 * @var string
+	 * @since 28.0.0
+	 */
+	public const MESSAGE_CALENDAR_BUSY_TENTATIVE = 'busy-tentative';
+
+	/**
 	 * Get the user this status is connected to
 	 *
 	 * @return string

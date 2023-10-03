@@ -216,7 +216,7 @@ class UserStatusMapper extends QBMapper {
 		$propertyPath = 'calendars/' . $userId . '/inbox';
 		$propertyName = '{' . Plugin::NS_CALDAV . '}calendar-availability';
 
-		$query = $this->connection->getQueryBuilder();
+		$query = $this->db->getQueryBuilder();
 		$query->select('propertyvalue')
 			->from('properties')
 			->where($query->expr()->eq('userid', $query->createNamedParameter($userId)))

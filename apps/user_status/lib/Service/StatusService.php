@@ -563,15 +563,34 @@ class StatusService {
 		$this->mapper->restoreBackupStatuses($restoreIds);
 	}
 
-	private function processCalendarAvailability(string $userId) {
+	/**
+	 * Calculate a users' status according to their availabilit settings and their calendar
+	 * events
+	 *
+	 * There are 4 predefined types of FBTYPE - 'FREE', 'BUSY', 'BUSY-UNAVAILABLE', 'BUSY-TENTATIVE',
+	 * but 'X-' properties are possible
+	 * @link https://icalendar.org/iCalendar-RFC-5545/3-2-9-free-busy-time-type.html
+	 *
+	 * The status will be changed for types
+	 *  - 'BUSY'
+	 *  - 'BUSY-UNAVAILABLE' (ex.: when a VAVILABILITY setting is in effect)
+	 *  - 'BUSY-TENTATIVE' (ex.: an event has been accepted tentatively)
+	 * and all FREEBUSY components without a type (implicitly a 'BUSY' status)
+	 *
+	 * 'X-' properties are not handled for now
+	 *
+	 * @param string $userId
+	 * @return void
+	 */
+	private function processCalendarAvailability(string $userId): void {
 		$user = $this->userManager->get($userId);
 		if($user === null) {
-			return false;
+			return;
 		}
 
 		$email = $user->getEMailAddress();
 		if($email === null) {
-			return false;
+			return;
 		}
 
 		$server = new InvitationResponseServer();
@@ -598,7 +617,7 @@ class StatusService {
 		);
 
 		if (!count($result) || !isset($result[0][200][$caldavNS.'schedule-inbox-URL'])) {
-			return false;
+			return;
 		}
 
 		$inboxUrl = $result[0][200][$caldavNS.'schedule-inbox-URL']->getHref();
@@ -607,13 +626,13 @@ class StatusService {
 		try {
 			$aclPlugin->checkPrivileges($inboxUrl, $caldavNS.'schedule-query-freebusy');
 		} catch (NeedPrivileges | NotAuthenticated $exception) {
-			return false;
+			return;
 		}
 
 		$calendarTimeZone = new DateTimeZone('UTC');
 		$calendars = $this->calendarManager->getCalendarsForPrincipal('principals/users/' . $userId);
 		if(empty($calendars)) {
-			return false;
+			return;
 		}
 
 		$query = new CalendarQuery('principals/users/' . $userId);
@@ -624,7 +643,6 @@ class StatusService {
 			}
 
 			$sct = $calendarObjects->getSchedulingTransparency();
-
 			if (!empty($sct) && ScheduleCalendarTransp::TRANSPARENT == $sct->getValue()) {
 				// If a calendar is marked as 'transparent', it means we must
 				// ignore it for free-busy purposes.
@@ -635,7 +653,6 @@ class StatusService {
 			if (!empty($ctz)) {
 				$vtimezoneObj = Reader::read($ctz);
 				$calendarTimeZone = $vtimezoneObj->VTIMEZONE->getTimeZone();
-
 				// Destroy circular references so PHP can garbage collect the object.
 				$vtimezoneObj->destroy();
 			}
@@ -647,15 +664,18 @@ class StatusService {
 		$dtEnd = new \DateTimeImmutable('+1 hours');
 		$query->setTimerangeStart($dtStart);
 		$query->setTimerangeEnd($dtEnd);
-		$results = $this->calendarManager->searchForPrincipal($query);
-		if(empty($results)) {
-			return false;
+		$calendarEvents = $this->calendarManager->searchForPrincipal($query);
+		// @todo we can cache that
+		$vavilability = $this->mapper->getAvailabilityFromPropertiesTable($userId);
+		if(empty($vavilability) && empty($calendarEvents)) {
+			// No availability settings and no calendar events, we can stop here
+			return;
 		}
 
 		$calendarObjects = new VCalendar();
-		foreach ($results as $objectInfo) {
+		foreach ($calendarEvents as $calendarEvent) {
 			$vEvent = new VEvent($calendarObjects, 'VEVENT');
-			foreach($objectInfo['objects'] as $component) {
+			foreach($calendarEvent['objects'] as $component) {
 				foreach ($component as $key =>  $value) {
 					$vEvent->add($key, $value[0]);
 				}
@@ -672,7 +692,6 @@ class StatusService {
 		$generator->setBaseObject($vcalendar);
 		$generator->setTimeZone($calendarTimeZone);
 
-		$vavilability = $this->mapper->getAvailabilityFromPropertiesTable($userId);
 		if (!empty($vavilability)) {
 			$generator->setVAvailability(
 				Reader::read(
@@ -680,42 +699,49 @@ class StatusService {
 				)
 			);
 		}
+		// Generate the intersection of VAVILABILITY and all VEVENTS in all calendars
 		$result = $generator->getResult();
 
-		// We have the intersection of VAVILABILITY and all VEVENTS in all calendars now
-		// We only need to handle the first result.
 		if (!isset($result->VFREEBUSY)) {
-			return false;
+			return;
 		}
 
 		/** @var Component $freeBusyComponent */
 		$freeBusyComponent = $result->VFREEBUSY;
 		$freeBusyProperties = $freeBusyComponent->select('FREEBUSY');
-		// If there is no Free-busy property at all, the time-range is empty and available
+		// If there is no FreeBusy property, the time-range is empty and available
+		// so there is no need to influence the current status
 		if (count($freeBusyProperties) === 0) {
-			return false;
-		}
-
-		// If more than one Free-Busy property was returned, it means that an event
-		// starts or ends inside this time-range, so it's not available and we return false
-		if (count($freeBusyProperties) > 1) {
-			return true;
+			return;
 		}
 
 		/** @var Property $freeBusyProperty */
 		$freeBusyProperty = $freeBusyProperties[0];
 		if (!$freeBusyProperty->offsetExists('FBTYPE')) {
-			// If there is no FBTYPE, it means it's busy
-			return true;
+			// If there is no FBTYPE, it means it's busy from a regular event
+			// @todo check if it would be better to set the timestamp to the start of the event
+			$this->setUserStatus($userId, IUserStatus::AWAY, IUserStatus::MESSAGE_CALENDAR_BUSY, false);
+			return;
 		}
 
+		// If we can't deal with the FBTYPE (custom properties are a possibility)
+		// we should ignore it and leave the current status
 		$fbTypeParameter = $freeBusyProperty->offsetGet('FBTYPE');
 		if (!($fbTypeParameter instanceof Parameter)) {
-			return false;
+			return;
 		}
-
-		$free = (strcasecmp($fbTypeParameter->getValue(), 'FREE') === 0);
-
-		return $free;
+		$fbType = $fbTypeParameter->getValue();
+		switch ($fbType) {
+			case 'BUSY':
+				$this->setUserStatus($userId, IUserStatus::AWAY, IUserStatus::MESSAGE_CALENDAR_BUSY, false);
+				return;
+			case 'BUSY-UNAVAILABLE':
+				$this->setUserStatus($userId, IUserStatus::AWAY, IUserStatus::MESSAGE_AVAILABILITY, false);
+				return;
+			case 'BUSY-TENTATIVE':
+				$this->setUserStatus($userId, IUserStatus::AWAY, IUserStatus::MESSAGE_CALENDAR_BUSY_TENTATIVE, false);
+				return;
+			default:
+		}
 	}
 }
