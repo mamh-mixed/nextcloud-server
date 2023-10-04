@@ -170,6 +170,11 @@
  * http://jquery.org/license
  */
 
+/*!
+* focus-trap 7.5.2
+* @license MIT, https://github.com/focus-trap/focus-trap/blob/master/LICENSE
+*/
+
 /*! jQuery Migrate v3.4.1 | (c) OpenJS Foundation and other contributors | jquery.org/license */
 
 /*! jQuery UI - v1.13.2 - 2022-07-14
