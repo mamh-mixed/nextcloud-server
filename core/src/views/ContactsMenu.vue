@@ -173,7 +173,7 @@ export default {
 
 		&__content {
 			/* fixed max height of the parent container without the search input */
-			height: calc(100vh - 50px * 3 - 50px);
+			height: calc(100vh - 50px * 3 - 60px);
 			max-height: calc(50px * 5);
 			min-height: calc(50px * 3.5 - 50px);
 			overflow-y: auto;
@@ -191,8 +191,6 @@ export default {
 		}
 
 		a {
-			padding: 2px;
-
 			&:focus-visible {
 				box-shadow: inset 0 0 0 2px var(--color-main-text) !important; // override rule in core/css/headers.scss #header a:focus-visible
 			}

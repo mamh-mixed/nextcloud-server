@@ -43,8 +43,8 @@
 		<a class="contact__body"
 			:href="contact.profileUrl || contact.topAction?.hyperlink">
 			<div class="contact__body__full-name">{{ contact.fullName }}</div>
-			<div class="contact__body__last-message">{{ contact.lastMessage }}</div>
-			<div v-if="contact.emailAddresses?.length" class="contact__body__email-address">{{ contact.emailAddresses[0] }}</div>
+			<div v-if="contact.lastMessage" class="contact__body__last-message">{{ contact.lastMessage }}</div>
+			<div class="contact__body__email-address">{{ contact.emailAddresses[0] }}</div>
 		</a>
 		<NcActions v-if="actions.length"
 			:inline="contact.topAction ? 1 : 0">
