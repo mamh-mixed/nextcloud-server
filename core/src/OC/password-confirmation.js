@@ -26,6 +26,7 @@ import _ from 'underscore'
 import $ from 'jquery'
 import moment from 'moment'
 import { generateUrl } from '@nextcloud/router'
+import { confirmPassword } from '@nextcloud/password-confirmation'
 
 import OC from './index.js'
 
@@ -52,58 +53,11 @@ export default {
 
 	/**
 	 * @param {Function} callback success callback function
-	 * @param {object} options options
+	 * @param {object} options options currently not used by confirmPassword
 	 * @param {Function} rejectCallback error callback function
 	 */
 	requirePasswordConfirmation(callback, options, rejectCallback) {
-		options = typeof options !== 'undefined' ? options : {}
-		const defaults = {
-			title: t('core', 'Authentication required'),
-			text: t(
-				'core',
-				'This action requires you to confirm your password'
-			),
-			confirm: t('core', 'Confirm'),
-			label: t('core', 'Password'),
-			error: '',
-		}
-
-		const config = _.extend(defaults, options)
-
-		const self = this
-
-		if (this.requiresPasswordConfirmation()) {
-			OC.dialogs.prompt(
-				config.text,
-				config.title,
-				function(result, password) {
-					if (result && password !== '') {
-						self._confirmPassword(password, config)
-					} else if (_.isFunction(rejectCallback)) {
-						rejectCallback()
-					}
-				},
-				true,
-				config.label,
-				true
-			).then(function() {
-				const $dialog = $('.oc-dialog:visible')
-				$dialog.find('.ui-icon').remove()
-				$dialog.addClass('password-confirmation')
-				if (config.error !== '') {
-					const $error = $('<p></p>').addClass('msg warning').text(config.error)
-					$dialog.find('.oc-dialog-content').append($error)
-				}
-				const $buttonrow = $dialog.find('.oc-dialog-buttonrow')
-				$buttonrow.addClass('aside')
-
-				const $buttons = $buttonrow.find('button')
-				$buttons.eq(0).hide()
-				$buttons.eq(1).text(config.confirm)
-			})
-		}
-
-		this.callback = callback
+		confirmPassword().then(callback, rejectCallback)
 	},
 
 	_confirmPassword(password, config) {
@@ -123,7 +77,7 @@ export default {
 				}
 			},
 			error() {
-				config.error = t('core', 'Failed to authenticate, try again')
+				config.error = t('core', 'Failed to authenticate, please fill out your password')
 				OC.PasswordConfirmation.requirePasswordConfirmation(self.callback, config)
 			},
 		})
