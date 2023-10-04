@@ -82,6 +82,7 @@ import { translate as t } from '@nextcloud/l10n'
 
 import Contact from '../components/ContactsMenu/Contact.vue'
 import logger from '../logger.js'
+import Nextcloud from '../mixins/Nextcloud.js'
 
 export default {
 	name: 'ContactsMenu',
@@ -94,6 +95,8 @@ export default {
 		NcHeaderMenu,
 		NcLoadingIcon,
 	},
+
+	mixins: [Nextcloud],
 
 	data() {
 		const user = getCurrentUser()
@@ -131,7 +134,7 @@ export default {
 				})
 				this.contacts = contacts
 				this.contactsAppEnabled = contactsAppEnabled
-				this.loadingText = false
+				this.loadingText = undefined
 			} catch (error) {
 				logger.error('could not load contacts', {
 					error,
