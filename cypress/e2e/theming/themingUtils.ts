@@ -66,10 +66,10 @@ export const pickRandomColor = function(pickerSelector: string): Cypress.Chainab
 	// Open picker
 	cy.get(pickerSelector).click()
 
+	cy.get(pickerSelector).get('.color-picker__simple-color-circle').eq(randColour).click()
 	// Return selected colour
-	return cy.get(pickerSelector).get('.color-picker__simple-color-circle').eq(randColour)
-		.click().then(colorElement => {
-			const selectedColor = colorElement.css('background-color')
-			return selectedColor
-		})
+	return cy.get(pickerSelector).get('.color-picker__simple-color-circle').eq(randColour).then(colorElement => {
+		const selectedColor = colorElement.css('background-color')
+		return selectedColor
+	})
 }
