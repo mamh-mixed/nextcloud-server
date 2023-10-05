@@ -242,7 +242,7 @@ export default {
 	msg,
 	Notification,
 	/**
-	 * @deprecated 27.1.2 use methods from '@nextcloud/password-confirmation'
+	 * @deprecated 28.0.0 use methods from '@nextcloud/password-confirmation'
 	 */
 	PasswordConfirmation,
 	Plugins,
