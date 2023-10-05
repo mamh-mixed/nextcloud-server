@@ -22,33 +22,15 @@
  *
  */
 
-import _ from 'underscore'
-import $ from 'jquery'
-import moment from 'moment'
-import { generateUrl } from '@nextcloud/router'
-import { confirmPassword } from '@nextcloud/password-confirmation'
-
-import OC from './index.js'
+import { confirmPassword, isPasswordConfirmationRequired } from '@nextcloud/password-confirmation'
 
 /**
  * @namespace OC.PasswordConfirmation
  */
 export default {
-	callback: null,
-
-	pageLoadTime: null,
-
-	init() {
-		$('.password-confirm-required').on('click', _.bind(this.requirePasswordConfirmation, this))
-		this.pageLoadTime = moment.now()
-	},
 
 	requiresPasswordConfirmation() {
-		const serverTimeDiff = this.pageLoadTime - (window.nc_pageLoad * 1000)
-		const timeSinceLogin = moment.now() - (serverTimeDiff + (window.nc_lastLogin * 1000))
-
-		// if timeSinceLogin > 30 minutes and user backend allows password confirmation
-		return (window.backendAllowsPasswordConfirmation && timeSinceLogin > 30 * 60 * 1000)
+		return isPasswordConfirmationRequired()
 	},
 
 	/**
@@ -58,28 +40,5 @@ export default {
 	 */
 	requirePasswordConfirmation(callback, options, rejectCallback) {
 		confirmPassword().then(callback, rejectCallback)
-	},
-
-	_confirmPassword(password, config) {
-		const self = this
-
-		$.ajax({
-			url: generateUrl('/login/confirm'),
-			data: {
-				password,
-			},
-			type: 'POST',
-			success(response) {
-				window.nc_lastLogin = response.lastLogin
-
-				if (_.isFunction(self.callback)) {
-					self.callback()
-				}
-			},
-			error() {
-				config.error = t('core', 'Failed to authenticate, please fill out your password')
-				OC.PasswordConfirmation.requirePasswordConfirmation(self.callback, config)
-			},
-		})
 	},
 }
