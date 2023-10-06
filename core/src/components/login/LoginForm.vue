@@ -33,9 +33,9 @@
 				{{ t('core', 'Please contact your administrator.') }}
 			</NcNoteCard>
 			<NcNoteCard v-if="csrfCheckFailed"
-				:title="t('core', 'CSRF check failed')"
-				type="warning">
-				{{ t('core', 'Temporary error. Please try again.') }}
+				:heading="t('core', 'Temporary error')"
+				type="error">
+				{{ t('core', 'Please try again.') }}
 			</NcNoteCard>
 			<NcNoteCard v-if="messages.length > 0">
 				<div v-for="(message, index) in messages"
