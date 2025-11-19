@@ -291,11 +291,9 @@ export default {
 		},
 
 		userGroupsLabels() {
-			const allGroups = this.$store.getters.getGroups
-			return this.user.groups
-				.map((id) => {
-					const group = allGroups.find((g) => g.id === id)
-					return group?.name ?? id
+			return this.user.groupsWithDisplayname
+				.map((groupObject) => {
+					return groupObject.name
 				})
 				.join(', ')
 		},

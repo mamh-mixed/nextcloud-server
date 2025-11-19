@@ -64,10 +64,6 @@ export function resolveLanguage(user, serverLanguages): LanguageOption {
  * @return Form-ready data object
  */
 export function userToFormData(user, allGroups, quotaOptions, serverLanguages) {
-	const groups = user.groups
-		.map((id) => allGroups.find((g) => g.id === id))
-		.filter(Boolean)
-
 	const subadminGroups = (user.subadmin ?? [])
 		.map((id) => allGroups.find((g) => g.id === id))
 		.filter(Boolean)
@@ -87,7 +83,7 @@ export function userToFormData(user, allGroups, quotaOptions, serverLanguages) {
 		displayName: user.displayname ?? '',
 		password: '',
 		email: user.email ?? '',
-		groups,
+		groups: user.groupsWithDisplayname,
 		subadminGroups,
 		quota,
 		language: resolveLanguage(user, serverLanguages),

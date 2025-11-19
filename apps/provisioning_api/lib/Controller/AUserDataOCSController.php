@@ -8,6 +8,7 @@ declare(strict_types=1);
  */
 namespace OCA\Provisioning_API\Controller;
 
+use OC\Group\DisplayNameCache as GroupDisplayNameCache;
 use OC\Group\Manager as GroupManager;
 use OC\User\Backend;
 use OC\User\NoUserException;
@@ -61,6 +62,7 @@ abstract class AUserDataOCSController extends OCSController {
 		protected ISubAdmin $subAdminManager,
 		protected IFactory $l10nFactory,
 		protected IRootFolder $rootFolder,
+		private GroupDisplayNameCache $groupDisplayNameCache,
 	) {
 		parent::__construct($appName, $request);
 	}
@@ -104,8 +106,10 @@ abstract class AUserDataOCSController extends OCSController {
 		$userAccount = $this->accountManager->getAccount($targetUserObject);
 		$groups = $this->groupManager->getUserGroups($targetUserObject);
 		$gids = [];
+		$gidsDisplayName = [];
 		foreach ($groups as $group) {
 			$gids[] = $group->getGID();
+			$gidsDisplayName[] = ['id' => $group->getGID(), 'name' => $this->groupDisplayNameCache->getDisplayName($group->getGID())];
 		}
 
 		if ($isAdmin || $isDelegatedAdmin) {
@@ -186,6 +190,7 @@ abstract class AUserDataOCSController extends OCSController {
 		}
 
 		$data['groups'] = $gids;
+		$data['groupsWithDisplayname'] = $gidsDisplayName;
 		$data[self::USER_FIELD_LANGUAGE] = $this->l10nFactory->getUserLanguage($targetUserObject);
 		$data[self::USER_FIELD_LOCALE] = $this->config->getUserValue($targetUserObject->getUID(), 'core', 'locale');
 		$data[self::USER_FIELD_TIMEZONE] = $this->config->getUserValue($targetUserObject->getUID(), 'core', 'timezone');

@@ -12,6 +12,7 @@ namespace OCA\Provisioning_API\Controller;
 
 use InvalidArgumentException;
 use OC\Authentication\Token\RemoteWipe;
+use OC\Group\DisplayNameCache as GroupDisplayNameCache;
 use OC\Group\Group;
 use OC\KnownUser\KnownUserService;
 use OC\User\Backend;
@@ -83,6 +84,7 @@ class UsersController extends AUserDataOCSController {
 		private IPhoneNumberUtil $phoneNumberUtil,
 		private IAppManager $appManager,
 		private IAppConfig $appConfig,
+		protected GroupDisplayNameCache $groupDisplayNameCache,
 	) {
 		parent::__construct(
 			$appName,
@@ -95,6 +97,7 @@ class UsersController extends AUserDataOCSController {
 			$subAdminManager,
 			$l10nFactory,
 			$rootFolder,
+			$groupDisplayNameCache,
 		);
 
 		$this->l10n = $l10nFactory->get($appName);
