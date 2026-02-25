@@ -28,6 +28,7 @@ class ConfigLexicon implements ILexicon {
 	public const SHARE_LINK_EXPIRE_DATE_ENFORCED = 'shareapi_enforce_expire_date';
 	public const USER_LANGUAGE = 'lang';
 	public const OCM_DISCOVERY_ENABLED = 'ocm_discovery_enabled';
+	public const LOOKUP_LOCAL_ACCOUNT_SEARCH = 'lus_local_account_search';
 
 	public const USER_LOCALE = 'locale';
 	public const USER_TIMEZONE = 'timezone';
@@ -93,6 +94,7 @@ class ConfigLexicon implements ILexicon {
 			),
 			new Entry(self::LASTCRON_TIMESTAMP, ValueType::INT, 0, 'timestamp of last cron execution'),
 			new Entry(self::OCM_DISCOVERY_ENABLED, ValueType::BOOL, true, 'enable/disable OCM'),
+			new Entry(self::LOOKUP_LOCAL_ACCOUNT_SEARCH, ValueType::BOOL, false, 'use lookup result only when searching for local account'),
 			new Entry(self::UNIFIED_SEARCH_MIN_SEARCH_LENGTH, ValueType::INT, 1, 'Minimum search length to trigger the request', rename: 'unified-search.min-search-length'),
 			new Entry(self::UNIFIED_SEARCH_MAX_RESULTS_PER_REQUEST, ValueType::INT, 25, 'Maximum results returned per search request', rename: 'unified-search.max-results-per-request'),
 			new Entry(

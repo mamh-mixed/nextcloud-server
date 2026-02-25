@@ -7,12 +7,14 @@
 
 namespace OC\Collaboration\Collaborators;
 
+use OC\Core\AppInfo\ConfigLexicon;
 use OCA\Federation\TrustedServers;
 use OCP\Collaboration\Collaborators\ISearchPlugin;
 use OCP\Collaboration\Collaborators\ISearchResult;
 use OCP\Collaboration\Collaborators\SearchResultType;
 use OCP\Federation\ICloudIdManager;
 use OCP\Http\Client\IClientService;
+use OCP\IAppConfig;
 use OCP\IConfig;
 use OCP\IUserSession;
 use OCP\Share\IShare;
@@ -24,6 +26,7 @@ class LookupPlugin implements ISearchPlugin {
 
 	public function __construct(
 		private IConfig $config,
+		private readonly IAppConfig $appConfig,
 		private IClientService $clientService,
 		IUserSession $userSession,
 		private ICloudIdManager $cloudIdManager,
@@ -75,7 +78,7 @@ class LookupPlugin implements ISearchPlugin {
 					]);
 					continue;
 				}
-				if ($this->currentUserRemote === $remote) {
+				if ($this->currentUserRemote === $remote && !$this->appConfig->getValueBool('core', ConfigLexicon::LOOKUP_LOCAL_ACCOUNT_SEARCH)) {
 					continue;
 				}
 				$name = $lookup['name']['value'] ?? '';
