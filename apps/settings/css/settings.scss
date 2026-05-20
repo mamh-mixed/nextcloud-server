@@ -70,6 +70,11 @@ select {
 #personal-settings {
 	display: grid;
 	padding: 20px;
+	// Clear the NcAppNavigation toggle. Full width needed: widgets scroll through it.
+	padding-inline-start: max(
+		20px,
+		calc(var(--app-navigation-padding, calc(var(--default-grid-baseline) * 2)) + var(--default-clickable-area))
+	);
 	max-width: 1700px;
 	grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
 	column-gap: 10px;
@@ -391,6 +396,15 @@ span.usersLastLoginTooltip {
 
 /* SETTINGS SECTIONS */
 // to match with NcSettingsSection component
+.section,
+.settings-section {
+	// Clear the NcAppNavigation toggle overhang. Vue 3 NcSettingsSection has its own scoped fix.
+	margin-inline-start: max(
+		0px,
+		calc(var(--app-navigation-padding, calc(var(--default-grid-baseline) * 2)) + var(--default-clickable-area) / 2)
+	);
+}
+
 .section {
 	margin-bottom: 0;
 	/* section divider lines, none needed for last one */
