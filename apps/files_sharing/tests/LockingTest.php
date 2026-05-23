@@ -10,11 +10,10 @@ namespace OCA\Files_Sharing\Tests;
 use OC\Files\Filesystem;
 use OC\Files\View;
 use OCP\Constants;
-use OCP\IUserManager;
 use OCP\Lock\ILockingProvider;
 use OCP\Lock\LockedException;
-use OCP\Server;
 use OCP\Share\IShare;
+use Test\Traits\UserTrait;
 
 /**
  * Class LockingTest
@@ -24,10 +23,7 @@ use OCP\Share\IShare;
  */
 #[\PHPUnit\Framework\Attributes\Group(name: 'DB')]
 class LockingTest extends TestCase {
-	/**
-	 * @var \Test\Util\User\Dummy
-	 */
-	private $userBackend;
+	use UserTrait;
 
 	private $ownerUid;
 	private $recipientUid;
@@ -35,13 +31,10 @@ class LockingTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 
-		$this->userBackend = new \Test\Util\User\Dummy();
-		Server::get(IUserManager::class)->registerBackend($this->userBackend);
-
 		$this->ownerUid = $this->getUniqueID('owner_');
 		$this->recipientUid = $this->getUniqueID('recipient_');
-		$this->userBackend->createUser($this->ownerUid, '');
-		$this->userBackend->createUser($this->recipientUid, '');
+		$this->createUser($this->ownerUid, '');
+		$this->createUser($this->recipientUid, '');
 
 		$this->loginAsUser($this->ownerUid);
 		Filesystem::mkdir('/foo');
@@ -58,11 +51,6 @@ class LockingTest extends TestCase {
 
 		$this->loginAsUser($this->recipientUid);
 		$this->assertTrue(Filesystem::file_exists('bar.txt'));
-	}
-
-	protected function tearDown(): void {
-		Server::get(IUserManager::class)->removeBackend($this->userBackend);
-		parent::tearDown();
 	}
 
 
