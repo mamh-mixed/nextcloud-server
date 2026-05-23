@@ -1239,7 +1239,9 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 			if ($this->resultHasMorePermissiveEntry($result, $row['id'], $proxyOverlay)) {
 				continue;
 			}
-			$result[$row['id']] = $this->rowToDeletedCalendarObject($row, $row['calendaruri'], false, $proxyOverlay);
+			[, $ownerName] = Uri\split($row['calendarprincipaluri']);
+			$calendarUri = $proxyOverlay !== null ? $row['calendaruri'] . '_delegated_by_' . $ownerName : $row['calendaruri'];
+			$result[$row['id']] = $this->rowToDeletedCalendarObject($row, $calendarUri, false, $proxyOverlay);
 		}
 		$stmt->closeCursor();
 
@@ -1334,6 +1336,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 			'etag' => '"' . $row['etag'] . '"',
 			'calendarid' => $row['calendarid'],
 			'calendaruri' => $calendarUri,
+			'sourcecalendaruri' => $row['calendaruri'],
 			'calendarprincipaluri' => $row['calendarprincipaluri'],
 			'size' => (int)$row['size'],
 			'component' => strtolower($row['componenttype']),
@@ -2720,7 +2723,9 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 		$stmt->closeCursor();
 
 		if ($row) {
-			return $this->rowToDeletedCalendarObject($row, $row['calendaruri'], true, $proxyOverlay);
+			[, $ownerName] = Uri\split($row['calendarprincipaluri']);
+			$calendarUri = $proxyOverlay !== null ? $row['calendaruri'] . '_delegated_by_' . $ownerName : $row['calendaruri'];
+			return $this->rowToDeletedCalendarObject($row, $calendarUri, true, $proxyOverlay);
 		}
 
 		// Check shared calendars; order by access ASC so the most permissive
