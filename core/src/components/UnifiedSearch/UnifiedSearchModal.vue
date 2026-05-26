@@ -352,7 +352,7 @@ export default defineComponent({
 					case 1:
 						return t('core', 'Start typing to search')
 					default:
-						return n('core', 'Minimum search length is {minSearchLength} character', 'Minimum search length is {minSearchLength} characters', this.minSearchLength, { minSearchLength: this.minSearchLength })
+						return n('core', 'Minimum search length is %n character', 'Minimum search length is %n characters', this.minSearchLength)
 				}
 			}
 
