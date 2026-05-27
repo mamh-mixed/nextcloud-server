@@ -20,6 +20,11 @@ namespace OCA\Provisioning_API;
  *
  * @psalm-type Provisioning_APIUserDetailsScope = 'v2-private'|'v2-local'|'v2-federated'|'v2-published'
  *
+ * @psalm-type Provisioning_APIUserDetailsGroupWithDisplayname = array{
+ *     id: string,
+ *     name: string|null,
+ *  }
+ *
  * @psalm-type Provisioning_APIUserDetails = array{
  *     additional_mail: list<string>,
  *     additional_mailScope?: list<Provisioning_APIUserDetailsScope>,
@@ -72,6 +77,7 @@ namespace OCA\Provisioning_API;
  *     blueskyScope?: Provisioning_APIUserDetailsScope,
  *     website: string,
  *     websiteScope?: Provisioning_APIUserDetailsScope,
+ *     groupsWithDisplayname: list<Provisioning_APIUserDetailsGroupWithDisplayname>
  * }
  *
  * @psalm-type Provisioning_APIGroupDetails = array{
