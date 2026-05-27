@@ -123,6 +123,10 @@ class DeletedCalendarObject implements IACL, ICalendarObject, IRestorable {
 		return $this->objectData['calendarprincipaluri'] ?? null;
 	}
 
+	public function getDelegator(): ?string {
+		return $this->objectData['delegator'] ?? null;
+	}
+
 	#[\Override]
 	public function getACL(): array {
 		$acl = [

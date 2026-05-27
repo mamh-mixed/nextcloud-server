@@ -1201,16 +1201,18 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 	 * @throws Exception
 	 */
 	public function getDeletedCalendarObjectsByPrincipal(string $principalUri): array {
-		$result = $this->collectDeletedCalendarObjectsForPrincipal($principalUri, null);
+		$result = [];
+		$this->collectDeletedCalendarObjectsForPrincipal($principalUri, $result, null);
 		foreach ($this->getProxyDelegators($principalUri) as $delegator => $hasProxyWrite) {
 			$overlay = $hasProxyWrite ? Backend::ACCESS_READ_WRITE : Backend::ACCESS_READ;
-			$result = array_merge($result, $this->collectDeletedCalendarObjectsForPrincipal($delegator, $overlay));
+			$this->collectDeletedCalendarObjectsForPrincipal($delegator, $result, $overlay);
 		}
-		return $result;
+		return array_values($result);
 	}
 
 	/**
-	 * Run the owned + shared trashbin queries for $principalUri and merge into $result.
+	 * Run the owned + shared trashbin queries for $principalUri and merge the
+	 * results into $result, keyed by calendar object id.
 	 *
 	 * @param string $principalUri principal whose calendars to scan.
 	 * @param array $result accumulator keyed by calendar object id; merged in-place.
@@ -1219,10 +1221,8 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 	 *                               effective share access for that accessor (READ_WRITE for proxy-write,
 	 *                               READ for proxy-read). null means $principalUri is the accessor itself.
 	 */
-	private function collectDeletedCalendarObjectsForPrincipal(string $principalUri, ?int $proxyOverlay): array {
+	private function collectDeletedCalendarObjectsForPrincipal(string $principalUri, array &$result, ?int $proxyOverlay): void {
 		[$principalUri, $principals] = $this->resolvePrincipal($principalUri);
-
-		$result = [];
 
 		// Owned calendars
 		$query = $this->db->getQueryBuilder();
@@ -1240,8 +1240,9 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 				continue;
 			}
 			[, $ownerName] = Uri\split($row['calendarprincipaluri']);
-			$calendarUri = $proxyOverlay !== null ? $row['calendaruri'] . '_delegated_by_' . $ownerName : $row['calendaruri'];
-			$result[$row['id']] = $this->rowToDeletedCalendarObject($row, $calendarUri, false, $proxyOverlay);
+			$isDelegated = $proxyOverlay !== null;
+			$calendarUri = $isDelegated ? $row['calendaruri'] . '_delegated_by_' . $ownerName : $row['calendaruri'];
+			$result[$row['id']] = $this->rowToDeletedCalendarObject($row, $calendarUri, false, $proxyOverlay, $isDelegated ? $principalUri : null);
 		}
 		$stmt->closeCursor();
 
@@ -1265,10 +1266,9 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 				continue;
 			}
 			[, $ownerName] = Uri\split($row['calendarprincipaluri']);
-			$result[$row['id']] = $this->rowToDeletedCalendarObject($row, $row['calendaruri'] . '_shared_by_' . $ownerName, false, $effective);
+			$result[$row['id']] = $this->rowToDeletedCalendarObject($row, $row['calendaruri'] . '_shared_by_' . $ownerName, false, $effective, null);
 		}
 		$stmt->closeCursor();
-		return array_values($result);
 	}
 
 	/**
@@ -1327,7 +1327,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 		return $delegators;
 	}
 
-	private function rowToDeletedCalendarObject(array $row, string $calendarUri, bool $includeData = false, ?int $sharedAccess = null): array {
+	private function rowToDeletedCalendarObject(array $row, string $calendarUri, bool $includeData = false, ?int $sharedAccess = null, ?string $delegator = null): array {
 		$deletedAt = isset($row['deleted_at']) ? (int)$row['deleted_at'] : null;
 		$result = [
 			'id' => $row['id'],
@@ -1342,6 +1342,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 			'component' => strtolower($row['componenttype']),
 			'classification' => (int)$row['classification'],
 			'deleted_at' => $deletedAt,
+			'delegator' => $delegator,
 			'{' . \OCA\DAV\DAV\Sharing\Plugin::NS_NEXTCLOUD . '}deleted-at' => $deletedAt,
 		];
 		if ($sharedAccess !== null) {
@@ -2704,6 +2705,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 	 * @param int $id
 	 * @param string $principalUri
 	 * @param int|null $proxyOverlay see collectDeletedCalendarObjectsForPrincipal.
+	 * @return array|null
 	 */
 	private function findDeletedCalendarObjectForPrincipal(int $id, string $principalUri, ?int $proxyOverlay): ?array {
 		[$principalUri, $principals] = $this->resolvePrincipal($principalUri);
@@ -2724,8 +2726,9 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 
 		if ($row) {
 			[, $ownerName] = Uri\split($row['calendarprincipaluri']);
-			$calendarUri = $proxyOverlay !== null ? $row['calendaruri'] . '_delegated_by_' . $ownerName : $row['calendaruri'];
-			return $this->rowToDeletedCalendarObject($row, $calendarUri, true, $proxyOverlay);
+			$isDelegated = $proxyOverlay !== null ;
+			$calendarUri = $isDelegated  ? $row['calendaruri'] . '_delegated_by_' . $ownerName : $row['calendaruri'];
+			return $this->rowToDeletedCalendarObject($row, $calendarUri, true, $proxyOverlay, $isDelegated ? $principalUri : null);
 		}
 
 		// Check shared calendars; order by access ASC so the most permissive
@@ -2752,7 +2755,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 
 		$effective = $this->effectiveAccess((int)$row['shareaccess'], $proxyOverlay);
 		[, $ownerName] = Uri\split($row['calendarprincipaluri']);
-		return $this->rowToDeletedCalendarObject($row, $row['calendaruri'] . '_shared_by_' . $ownerName, true, $effective);
+		return $this->rowToDeletedCalendarObject($row, $row['calendaruri'] . '_shared_by_' . $ownerName, true, $effective, null);
 	}
 
 	/**
