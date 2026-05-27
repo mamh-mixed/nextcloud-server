@@ -109,7 +109,7 @@ abstract class AUserDataOCSController extends OCSController {
 		$gidsDisplayName = [];
 		foreach ($groups as $group) {
 			$gids[] = $group->getGID();
-			$gidsDisplayName[] = ['id' => $group->getGID(), 'name' => $this->groupDisplayNameCache->getDisplayName($group->getGID())];
+			$gidsDisplayName[] = ['id' => $group->getGID(), 'name' => $this->groupDisplayNameCache->getDisplayName($group->getGID()) ?? $group->getGID()];
 		}
 
 		if ($isAdmin || $isDelegatedAdmin) {

@@ -22,7 +22,7 @@ namespace OCA\Provisioning_API;
  *
  * @psalm-type Provisioning_APIUserDetailsGroupWithDisplayname = array{
  *     id: string,
- *     name: string|null,
+ *     name: string,
  *  }
  *
  * @psalm-type Provisioning_APIUserDetails = array{
