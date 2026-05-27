@@ -10,6 +10,7 @@ namespace OCA\Provisioning_API\Tests\Controller;
 
 use Exception;
 use OC\Authentication\Token\RemoteWipe;
+use OC\Group\DisplayNameCache as GroupDisplayNameCache;
 use OC\Group\Manager;
 use OC\KnownUser\KnownUserService;
 use OC\PhoneNumberUtil;
@@ -70,6 +71,7 @@ class UsersControllerTest extends TestCase {
 	private IPhoneNumberUtil $phoneNumberUtil;
 	private IAppManager $appManager;
 	private IAppConfig&MockObject $appConfig;
+	private GroupDisplayNameCache&MockObject $groupDisplayNameCache;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -93,6 +95,7 @@ class UsersControllerTest extends TestCase {
 		$this->appManager = $this->createMock(IAppManager::class);
 		$this->appConfig = $this->createMock(IAppConfig::class);
 		$this->rootFolder = $this->createMock(IRootFolder::class);
+		$this->groupDisplayNameCache = $this->createMock(GroupDisplayNameCache::class);
 
 		$l10n = $this->createMock(IL10N::class);
 		$l10n->method('t')->willReturnCallback(fn (string $txt, array $replacement = []) => sprintf($txt, ...$replacement));
@@ -120,6 +123,7 @@ class UsersControllerTest extends TestCase {
 				$this->phoneNumberUtil,
 				$this->appManager,
 				$this->appConfig,
+				$this->groupDisplayNameCache,
 			])
 			->onlyMethods(['fillStorageInfo'])
 			->getMock();
@@ -510,6 +514,7 @@ class UsersControllerTest extends TestCase {
 				$this->phoneNumberUtil,
 				$this->appManager,
 				$this->appConfig,
+				$this->groupDisplayNameCache,
 			])
 			->onlyMethods(['editUser'])
 			->getMock();
@@ -1130,18 +1135,23 @@ class UsersControllerTest extends TestCase {
 			->expects($this->once())
 			->method('getSubAdminsGroups')
 			->willReturn([$group3]);
-		$group0->expects($this->once())
+		$group0->expects($this->exactly(3))
 			->method('getGID')
 			->willReturn('group0');
-		$group1->expects($this->once())
+		$group1->expects($this->exactly(3))
 			->method('getGID')
 			->willReturn('group1');
-		$group2->expects($this->once())
+		$group2->expects($this->exactly(3))
 			->method('getGID')
 			->willReturn('group2');
 		$group3->expects($this->once())
 			->method('getGID')
 			->willReturn('group3');
+		$this->groupDisplayNameCache
+			->method('getDisplayName')
+			->willReturnCallback(function (string $gid): string {
+				return ucfirst($gid);
+			});
 
 		$this->mockAccount($targetUser, [
 			IAccountManager::PROPERTY_ADDRESS => ['value' => 'address'],
@@ -1243,6 +1253,11 @@ class UsersControllerTest extends TestCase {
 			'notify_email' => null,
 			'manager' => '',
 			'pronouns' => 'they/them',
+			'groupsWithDisplayname' => [
+				['id' => 'group0', 'name' => 'Group0'],
+				['id' => 'group1', 'name' => 'Group1'],
+				['id' => 'group2', 'name' => 'Group2'],
+			],
 		];
 		$this->assertEquals($expected, $this->invokePrivate($this->api, 'getUserData', ['UID']));
 	}
@@ -1391,6 +1406,7 @@ class UsersControllerTest extends TestCase {
 			'notify_email' => null,
 			'manager' => '',
 			'pronouns' => 'they/them',
+			'groupsWithDisplayname' => [],
 		];
 		$this->assertEquals($expected, $this->invokePrivate($this->api, 'getUserData', ['UID']));
 	}
@@ -1577,6 +1593,7 @@ class UsersControllerTest extends TestCase {
 			'notify_email' => null,
 			'manager' => '',
 			'pronouns' => 'they/them',
+			'groupsWithDisplayname' => [],
 		];
 		$this->assertEquals($expected, $this->invokePrivate($this->api, 'getUserData', ['UID']));
 	}
@@ -4151,6 +4168,7 @@ class UsersControllerTest extends TestCase {
 				$this->phoneNumberUtil,
 				$this->appManager,
 				$this->appConfig,
+				$this->groupDisplayNameCache,
 			])
 			->onlyMethods(['getUserData'])
 			->getMock();
@@ -4246,6 +4264,7 @@ class UsersControllerTest extends TestCase {
 				$this->phoneNumberUtil,
 				$this->appManager,
 				$this->appConfig,
+				$this->groupDisplayNameCache,
 			])
 			->onlyMethods(['getUserData'])
 			->getMock();
