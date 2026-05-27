@@ -7,7 +7,7 @@
  */
 namespace OCP\Comments;
 
-use OCP\IServerContainer;
+use Psr\Container\ContainerInterface;
 
 /**
  * Interface ICommentsManagerFactory
@@ -21,10 +21,10 @@ interface ICommentsManagerFactory {
 	/**
 	 * Constructor for the comments manager factory
 	 *
-	 * @param IServerContainer $serverContainer server container
+	 * @param ContainerInterface $serverContainer server container
 	 * @since 9.0.0
 	 */
-	public function __construct(IServerContainer $serverContainer);
+	public function __construct(ContainerInterface $serverContainer);
 
 	/**
 	 * creates and returns an instance of the ICommentsManager

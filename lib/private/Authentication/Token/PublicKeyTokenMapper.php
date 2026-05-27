@@ -67,7 +67,6 @@ class PublicKeyTokenMapper extends QBMapper {
 	 * @throws DoesNotExistException
 	 */
 	public function getToken(string $token): PublicKeyToken {
-		/* @var $qb IQueryBuilder */
 		$qb = $this->db->getQueryBuilder();
 		$result = $qb->select('*')
 			->from($this->tableName)

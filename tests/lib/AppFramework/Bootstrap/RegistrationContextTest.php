@@ -16,6 +16,7 @@ use OCP\AppFramework\App;
 use OCP\AppFramework\IAppContainer;
 use OCP\EventDispatcher\IEventDispatcher;
 use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Test\TestCase;
 
@@ -92,7 +93,7 @@ class RegistrationContextTest extends TestCase {
 		$app = $this->createMock(App::class);
 		$alias = 'abc';
 		$target = 'def';
-		$container = $this->createMock(IAppContainer::class);
+		$container = $this->createMock(ContainerInterface::class);
 		$app->method('getContainer')
 			->willReturn($container);
 		$container->expects($this->once())

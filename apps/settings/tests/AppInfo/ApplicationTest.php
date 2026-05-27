@@ -16,8 +16,8 @@ use OCA\Settings\Controller\MailSettingsController;
 use OCA\Settings\Controller\UsersController;
 use OCA\Settings\Middleware\SubadminMiddleware;
 use OCP\AppFramework\Controller;
-use OCP\AppFramework\IAppContainer;
 use OCP\AppFramework\Middleware;
+use Psr\Container\ContainerInterface;
 use Test\TestCase;
 
 /**
@@ -28,7 +28,7 @@ use Test\TestCase;
 #[\PHPUnit\Framework\Attributes\Group(name: 'DB')]
 class ApplicationTest extends TestCase {
 	protected Application $app;
-	protected IAppContainer $container;
+	protected ContainerInterface $container;
 
 	protected function setUp(): void {
 		parent::setUp();
