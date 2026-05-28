@@ -230,7 +230,6 @@ class AppConfig implements IAppConfig {
 		throw new AppConfigUnknownKeyException('unknown config key');
 	}
 
-
 	/**
 	 * @inheritDoc
 	 *
@@ -308,7 +307,6 @@ class AppConfig implements IAppConfig {
 
 		return $values;
 	}
-
 
 	/**
 	 * Get the config value as string.
@@ -595,7 +593,6 @@ class AppConfig implements IAppConfig {
 		return $type;
 	}
 
-
 	/**
 	 * Store a config key and its value in database as VALUE_MIXED
 	 *
@@ -633,7 +630,6 @@ class AppConfig implements IAppConfig {
 			self::VALUE_MIXED | ($sensitive ? self::VALUE_SENSITIVE : 0)
 		);
 	}
-
 
 	/**
 	 * @inheritDoc
@@ -989,7 +985,6 @@ class AppConfig implements IAppConfig {
 		return true;
 	}
 
-
 	/**
 	 * @inheritDoc
 	 *
@@ -1291,7 +1286,6 @@ class AppConfig implements IAppConfig {
 		$this->loadConfig(lazy: true);
 	}
 
-
 	/**
 	 * For debug purpose.
 	 * Returns the cached data.
@@ -1474,7 +1468,6 @@ class AppConfig implements IAppConfig {
 		return $this->setTypedValue($app, $key, (string)$value, false, self::VALUE_MIXED);
 	}
 
-
 	/**
 	 * get multiple values, either the app or key can be used as wildcard by setting it to false
 	 *
@@ -1510,7 +1503,6 @@ class AppConfig implements IAppConfig {
 	public function getFilteredValues($app) {
 		return $this->getAllValues($app, filtered: true);
 	}
-
 
 	/**
 	 * **Warning:** avoid default NULL value for $lazy as this will
