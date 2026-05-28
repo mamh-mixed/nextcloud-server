@@ -49,12 +49,14 @@ readonly class ShareRecipient {
 			$displayName .= ' (' . $recipientType->getDisplayName() . ': ' . $this->value . ')';
 		}
 
+		// TODO: Add link with secret
 		return [
 			'class' => $this->class,
 			'value' => $this->value,
 			'instance' => $this->instance,
 			'display_name' => $displayName,
 			'icon' => $recipientType->getRecipientIcon($this->value)?->format(),
+			'secret_updatable' => $recipientType instanceof IShareRecipientTypeUpdatableSecret && $recipientType->isSecretUpdatable($this->value),
 		];
 	}
 

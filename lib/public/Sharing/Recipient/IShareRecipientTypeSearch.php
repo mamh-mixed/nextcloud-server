@@ -12,7 +12,6 @@ namespace OCP\Sharing\Recipient;
 use OCP\AppFramework\Attribute\Implementable;
 use OCP\Sharing\ShareAccessContext;
 
-// TODO: Force all recipient types to implement search
 /**
  * @since 34.0.0
  */

@@ -30,6 +30,7 @@ use OCP\Sharing\Property\ISharePropertyTypeModifyValue;
 use OCP\Sharing\Property\ShareProperty;
 use OCP\Sharing\Recipient\IShareRecipientType;
 use OCP\Sharing\Recipient\IShareRecipientTypeSearch;
+use OCP\Sharing\Recipient\IShareRecipientTypeUpdatableSecret;
 use OCP\Sharing\Recipient\ShareRecipient;
 use OCP\Sharing\Recipient\ShareRecipientWithInternalDetails;
 use OCP\Sharing\Share;
@@ -63,6 +64,7 @@ final readonly class Manager implements IManager {
 
 	/**
 	 * For some reason rector always tries to add ShareRecipient[] as the return type and there is no way to stop it.
+	 *
 	 * @param ?class-string<IShareRecipientType> $recipientTypeClass
 	 * @param positive-int $limit
 	 * @param non-negative-int $offset
@@ -283,7 +285,7 @@ final readonly class Manager implements IManager {
 					->executeStatement();
 			} catch (Exception $exception) {
 				if ($exception instanceof \OCP\DB\Exception && $exception->getReason() === \OCP\DB\Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION) {
-					throw new ShareInvalidException('Tried to add share recipient that already exists: ' . $recipient->class . ' ' . $recipient->value);
+					throw new ShareInvalidException('Tried to add share recipient that already exists: ' . $recipient->class . ' ' . $recipient->value . ' ' . ($recipient->instance ?? ''));
 				}
 
 				throw $exception;
@@ -299,21 +301,7 @@ final readonly class Manager implements IManager {
 			$this->validateShareOwnerOperation($accessContext, $id, $owner);
 		} catch (ShareForbiddenException) {
 			$share = $this->getShare($accessContext, $id);
-			$this->validatePermission($share, ReshareSharePermissionType::class);
-
-			// We're only allowed to remove recipients, if they are visible to us.
-			$found = false;
-			$recipients = $share->recipients;
-			foreach ($recipients as $shareRecipient) {
-				if ($recipient->class === $shareRecipient->class && $recipient->value === $shareRecipient->value && $recipient->instance === $shareRecipient->instance) {
-					$found = true;
-					break;
-				}
-			}
-
-			if (!$found) {
-				throw new ShareForbiddenException($id);
-			}
+			$this->validateReshareOperation($share, $recipient);
 		}
 
 		$this->wrapUpdate($id, function () use ($id, $recipient): void {
@@ -325,9 +313,10 @@ final readonly class Manager implements IManager {
 				->where($qb->expr()->eq('share_id', $qb->createNamedParameter((int)$id, IQueryBuilder::PARAM_INT)))
 				->andWhere($qb->expr()->eq('recipient_class', $qb->createNamedParameter($recipient->class)))
 				->andWhere($qb->expr()->eq('recipient_value', $qb->createNamedParameter($recipient->value)))
+				->andWhere($qb->expr()->eq('recipient_instance', $qb->createNamedParameter($recipient->instance)))
 				->executeStatement();
 			if ($rowCount === 0) {
-				throw new ShareInvalidException('Tried to remove share recipient that does not exist: ' . $recipient->class . ' ' . $recipient->value);
+				throw new ShareInvalidException('Tried to remove share recipient that does not exist: ' . $recipient->class . ' ' . $recipient->value . ' ' . ($recipient->instance ?? ''));
 			}
 
 			// Do not use the current share access context, as it might not be able to see all recipients!
@@ -339,6 +328,45 @@ final readonly class Manager implements IManager {
 					->set('state', $qb->createNamedParameter(ShareState::Draft->value))
 					->where($qb->expr()->eq('id', $qb->createNamedParameter((int)$id, IQueryBuilder::PARAM_INT)))
 					->executeStatement();
+			}
+		});
+	}
+
+	#[\Override]
+	public function updateShareRecipientSecret(ShareAccessContext $accessContext, string $id, ShareRecipient $recipient, string $secret): void {
+		$owner = $this->getShareOwner($id);
+
+		try {
+			$this->validateShareOwnerOperation($accessContext, $id, $owner);
+		} catch (ShareForbiddenException) {
+			$share = $this->getShare($accessContext, $id);
+			$this->validateReshareOperation($share, $recipient);
+		}
+
+		if (($recipientType = $this->registry->getRecipientTypes()[$recipient->class] ?? null) === null) {
+			throw new ShareInvalidException('The recipient type is not registered: ' . $recipient->class);
+		}
+
+		if (!$recipientType instanceof IShareRecipientTypeUpdatableSecret || !$recipientType->isSecretUpdatable($recipient->value)) {
+			throw new ShareForbiddenException($id);
+		}
+
+		if (!preg_match('/^[a-z0-9-]+$/i', $secret)) {
+			throw new ShareInvalidException('The secret is not valid, it must be alphanumeric and may contain dashes.');
+		}
+
+		$this->wrapUpdate($id, function () use ($id, $recipient, $secret): void {
+			$qb = $this->connection->getQueryBuilder();
+			$rowCount = $qb
+				->update('sharing_share_recipients')
+				->set('recipient_secret', $qb->createNamedParameter($secret))
+				->where($qb->expr()->eq('share_id', $qb->createNamedParameter((int)$id, IQueryBuilder::PARAM_INT)))
+				->andWhere($qb->expr()->eq('recipient_class', $qb->createNamedParameter($recipient->class)))
+				->andWhere($qb->expr()->eq('recipient_value', $qb->createNamedParameter($recipient->value)))
+				->andWhere($qb->expr()->eq('recipient_instance', $qb->createNamedParameter($recipient->instance)))
+				->executeStatement();
+			if ($rowCount === 0) {
+				throw new ShareInvalidException('Tried to update a share recipient that does not exist: ' . $recipient->class . ' ' . $recipient->value . ' ' . ($recipient->instance ?? ''));
 			}
 		});
 	}
@@ -565,7 +593,29 @@ final readonly class Manager implements IManager {
 		throw new ShareForbiddenException($share->id);
 	}
 
+	/**
+	 * @throws ShareForbiddenException
+	 */
+	private function validateReshareOperation(Share $share, ShareRecipient $recipient): void {
+		$this->validatePermission($share, ReshareSharePermissionType::class);
+
+		$found = false;
+		$recipients = $share->recipients;
+		foreach ($recipients as $shareRecipient) {
+			if ($recipient->class === $shareRecipient->class && $recipient->value === $shareRecipient->value && $recipient->instance === $shareRecipient->instance) {
+				$found = true;
+				break;
+			}
+		}
+
+		// We're only allowed to remove or update recipients, if they are visible to us.
+		if (!$found) {
+			throw new ShareForbiddenException($share->id);
+		}
+	}
+
 	// TODO: Allow filter by source value
+
 	/**
 	 * @param ?class-string<IShareSourceType> $filterSourceTypeClass
 	 * @return list<Share>

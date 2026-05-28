@@ -72,6 +72,12 @@ interface IManager {
 	/**
 	 * @throws ShareForbiddenException
 	 * @throws ShareNotFoundException
+	 */
+	public function updateShareRecipientSecret(ShareAccessContext $accessContext, string $id, ShareRecipient $recipient, string $secret): void;
+
+	/**
+	 * @throws ShareForbiddenException
+	 * @throws ShareNotFoundException
 	 * @throws ShareInvalidException
 	 */
 	public function updateShareProperty(ShareAccessContext $accessContext, string $id, ShareProperty $property): void;

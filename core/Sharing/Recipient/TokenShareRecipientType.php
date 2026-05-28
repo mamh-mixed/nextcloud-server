@@ -19,12 +19,11 @@ use OCP\Sharing\Icon\ShareIconSVG;
 use OCP\Sharing\Icon\ShareIconURL;
 use OCP\Sharing\Recipient\IShareRecipientType;
 use OCP\Sharing\Recipient\IShareRecipientTypeSearch;
+use OCP\Sharing\Recipient\IShareRecipientTypeUpdatableSecret;
 use OCP\Sharing\Recipient\ShareRecipient;
 use OCP\Sharing\ShareAccessContext;
 
-// TODO: Find a way to show the links to the users and make the token editable
-// TODO: Check \OCP\Share\IManager::allowCustomTokens
-final class TokenShareRecipientType implements IShareRecipientType, IShareRecipientTypeSearch {
+final class TokenShareRecipientType implements IShareRecipientType, IShareRecipientTypeSearch, IShareRecipientTypeUpdatableSecret {
 	private const VALUE_LENGTH = 8;
 
 	#[\Override]
@@ -71,5 +70,10 @@ final class TokenShareRecipientType implements IShareRecipientType, IShareRecipi
 		}
 
 		return [];
+	}
+
+	#[\Override]
+	public function isSecretUpdatable(string $recipient): bool {
+		return Server::get(IManager::class)->allowCustomTokens();
 	}
 }

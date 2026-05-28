@@ -51,6 +51,7 @@ use OCP\Sharing\Source\ShareSource;
  *     instance: ?non-empty-string,
  *     display_name: non-empty-string,
  *     icon: ?SharingIcon,
+ *     secret_updatable: bool,
  * }
  *
  * @psalm-type SharingOwner = array{
