@@ -97,7 +97,7 @@ class PublicPreviewController extends PublicShareController {
 	) {
 		$cacheForSeconds = 60 * 60 * 24; // 1 day
 
-		if ($token === '' || $x === 0 || $y === 0) {
+		if ($token === '' || $x < 1 || $y < 1) {
 			return new DataResponse([], Http::STATUS_BAD_REQUEST);
 		}
 
@@ -136,7 +136,7 @@ class PublicPreviewController extends PublicShareController {
 				}
 
 				$previewFile = $shareNode->get($file);
-				if ($previewFile instanceof Folder) {
+				if (!($previewFile instanceof File)) {
 					return new DataResponse([], Http::STATUS_BAD_REQUEST);
 				}
 			} else {

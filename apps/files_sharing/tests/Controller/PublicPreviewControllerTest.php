@@ -83,6 +83,20 @@ class PublicPreviewControllerTest extends TestCase {
 		$this->assertEquals($expected, $res);
 	}
 
+	public function testNegativeWidth(): void {
+		$res = $this->controller->getPreview('token', 'file', -1, 10);
+		$expected = new DataResponse([], Http::STATUS_BAD_REQUEST);
+
+		$this->assertEquals($expected, $res);
+	}
+
+	public function testNegativeHeight(): void {
+		$res = $this->controller->getPreview('token', 'file', 10, -1);
+		$expected = new DataResponse([], Http::STATUS_BAD_REQUEST);
+
+		$this->assertEquals($expected, $res);
+	}
+
 	public function testInvalidShare(): void {
 		$this->shareManager->method('getShareByToken')
 			->with($this->equalTo('token'))
