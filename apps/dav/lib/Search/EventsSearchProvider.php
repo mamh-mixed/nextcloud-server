@@ -12,6 +12,7 @@ namespace OCA\DAV\Search;
 use DateTimeImmutable;
 use OCA\DAV\CalDAV\CalDavBackend;
 use OCP\IUser;
+use OCP\Search\IFilter;
 use OCP\Search\IFilteringProvider;
 use OCP\Search\ISearchQuery;
 use OCP\Search\SearchResult;
@@ -102,13 +103,21 @@ class EventsSearchProvider extends ACalendarSearchProvider implements IFiltering
 		$subscriptionsById = $this->getSortedSubscriptions($principalUri);
 
 		/** @var string|null $term */
-		$term = $query->getFilter('term')?->get();
+		$term = $query->getFilter(IFilter::BUILTIN_TERM)?->get();
 
-		$since = $query->getFilter('since')?->get();
-		$until = $query->getFilter('until')?->get();
+		/** @var DateTimeImmutable|null $since */
+		$since = $query->getFilter(IFilter::BUILTIN_SINCE)?->get();
+		/**	@var DateTimeImmutable|null $until */
+		$until = $query->getFilter(IFilter::BUILTIN_UNTIL)?->get();
 
-		if ($since !== null && $until === null) {
-			$until = new DateTimeImmutable('now', new \DateTimeZone('Z'));
+		// Expanding recurrences needs two concrete bounds, unlike the plain
+		// mtime/timestamp comparisons other search providers use. When only
+		// one side is given, fill the other with an placeholder.
+		if ($since instanceof DateTimeImmutable && $until === null) {
+			$until = new DateTimeImmutable(CalDavBackend::MAX_DATE, $since->getTimezone());
+		}
+		if ($until instanceof DateTimeImmutable && $since === null) {
+			$since = new DateTimeImmutable('@0');
 		}
 
 		/** @var array{start: DateTimeImmutable|null, end: DateTimeImmutable|null} $timeRange */
