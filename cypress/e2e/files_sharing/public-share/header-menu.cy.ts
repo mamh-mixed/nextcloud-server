@@ -37,6 +37,26 @@ describe('files_sharing: Public share - header actions menu', { testIsolation: t
 			]))
 	})
 
+	it('Can download all files with keyboard', () => {
+		cy.get('header')
+			.findByRole('button', { name: 'Download' })
+			.should('be.visible')
+			.focus()
+		cy.focused()
+			.type('{enter}')
+
+		const downloadsFolder = Cypress.config('downloadsFolder')
+		cy.readFile(`${downloadsFolder}/shared.zip`, null, { timeout: 15000 })
+			.should('exist')
+			.and('have.length.gt', 30)
+			.and(zipFileContains([
+				'shared/',
+				'shared/foo.txt',
+				'shared/subfolder/',
+				'shared/subfolder/bar.txt',
+			]))
+	})
+
 	it('Can copy direct link', () => {
 		// Check the button
 		cy.get('header')
