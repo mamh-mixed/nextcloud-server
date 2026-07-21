@@ -827,6 +827,76 @@ ICS;
 		$this->assertEquals('1780297200', $result0Data['attributes']['createdAt']);
 	}
 
+	public function testSearchSinceOnlyDefaultsUntilToMaxDate(): void {
+		// No until: expanding recurrences still needs a concrete upper bound,
+		// so it defaults to CalDavBackend::MAX_DATE (effectively unbounded)
+		// instead of guessing a caller's intent.
+		$user = $this->createMock(IUser::class);
+		$user->method('getUID')->willReturn('john.doe');
+		$query = $this->createMock(ISearchQuery::class);
+		$query->method('getFilter')->willReturnCallback(function ($name) {
+			return match ($name) {
+				'term' => new StringFilter('search term'),
+				'since' => new DateTimeFilter('2026-05-15'),
+				default => null,
+			};
+		});
+		$query->method('getLimit')->willReturn(5);
+		$query->method('getCursor')->willReturn(20);
+		$this->appManager->method('isEnabledForUser')->willReturn(true);
+		$this->l10n->method('t')->willReturnArgument(0);
+		$this->backend->method('getCalendarsForUser')->willReturn([]);
+		$this->backend->method('getSubscriptionsForUser')->willReturn([]);
+
+		$since = new \DateTimeImmutable('2026-05-15 00:00:00');
+		$this->backend->expects($this->once())
+			->method('searchPrincipalUri')
+			->with('principals/users/john.doe', 'search term', ['VEVENT'],
+				['SUMMARY', 'LOCATION', 'DESCRIPTION', 'ATTENDEE', 'ORGANIZER', 'CATEGORIES'],
+				['ATTENDEE' => ['CN'], 'ORGANIZER' => ['CN']],
+				['limit' => 5, 'offset' => 20, 'timerange' => [
+					'start' => $since,
+					'end' => new \DateTimeImmutable(CalDavBackend::MAX_DATE, $since->getTimezone()),
+				]])
+			->willReturn([]);
+
+		$this->provider->search($user, $query);
+	}
+
+	public function testSearchUntilOnlyDefaultsSinceToEpoch(): void {
+		// No since: the lower bound defaults to the Unix epoch (effectively
+		// unbounded into the past) for the same reason.
+		$user = $this->createMock(IUser::class);
+		$user->method('getUID')->willReturn('john.doe');
+		$query = $this->createMock(ISearchQuery::class);
+		$query->method('getFilter')->willReturnCallback(function ($name) {
+			return match ($name) {
+				'term' => new StringFilter('search term'),
+				'until' => new DateTimeFilter('2026-06-14'),
+				default => null,
+			};
+		});
+		$query->method('getLimit')->willReturn(5);
+		$query->method('getCursor')->willReturn(20);
+		$this->appManager->method('isEnabledForUser')->willReturn(true);
+		$this->l10n->method('t')->willReturnArgument(0);
+		$this->backend->method('getCalendarsForUser')->willReturn([]);
+		$this->backend->method('getSubscriptionsForUser')->willReturn([]);
+
+		$this->backend->expects($this->once())
+			->method('searchPrincipalUri')
+			->with('principals/users/john.doe', 'search term', ['VEVENT'],
+				['SUMMARY', 'LOCATION', 'DESCRIPTION', 'ATTENDEE', 'ORGANIZER', 'CATEGORIES'],
+				['ATTENDEE' => ['CN'], 'ORGANIZER' => ['CN']],
+				['limit' => 5, 'offset' => 20, 'timerange' => [
+					'start' => new \DateTimeImmutable('@0'),
+					'end' => new \DateTimeImmutable('2026-06-14 00:00:00'),
+				]])
+			->willReturn([]);
+
+		$this->provider->search($user, $query);
+	}
+
 	public function testSearchDropsInvalidRowsWithoutStallingCursor(): void {
 		// A row that resolves to no in-range occurrence must not prevent the
 		// cursor from advancing, or pagination would keep repeating the same
