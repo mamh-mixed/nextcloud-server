@@ -145,8 +145,8 @@ abstract class Provider extends \Test\TestCase {
 			? $provider->getThumbnail($file, $this->maxWidth, $this->maxHeight, $this->scalingUp, $this->rootView)
 			: $provider->getThumbnail($file, $this->maxWidth, $this->maxHeight, $this->scalingUp);
 
-		if (get_class($this) === BitmapTest::class && $preview === null) {
-			$this->markTestSkipped('An error occured while operating with Imagick.');
+		if (in_array(get_class($this), [BitmapTest::class, HEICTest::class]) && $preview === null) {
+			$this->markTestSkipped('An error occurred while operating with Imagick.');
 		}
 
 		$this->assertNotEquals(false, $preview);
