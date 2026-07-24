@@ -18,7 +18,6 @@ use OCP\IConfig;
 use Psr\Log\LoggerInterface;
 
 class RemoteAvatar extends Avatar {
-	private const ALLOWED_CONTENT_TYPES = [ 'image/png', 'image/jpg', 'image/jpeg' ];
 	private const IMAGE_CACHE_AGE = 60 * 60 * 24; // One day
 
 	private ICloudId $cloudId;
@@ -99,7 +98,7 @@ class RemoteAvatar extends Avatar {
 		]);
 
 		$contentType = $response->getHeader('Content-Type');
-		if (!in_array($contentType, self::ALLOWED_CONTENT_TYPES)) {
+		if (strpos($contentType, 'image/') === false) {
 			throw new \Exception('Unknown filetype');
 		}
 
