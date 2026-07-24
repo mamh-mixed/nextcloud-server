@@ -9,82 +9,94 @@
 			@keyup.esc.exact="resetSelection">
 			<NcCheckboxRadioSwitch
 				v-bind="selectAllBind"
-				:id="FILES_LIST_HEADER_SELECT_ALL_CHECKBOX_ID"
 				data-cy-files-list-selection-checkbox
 				@update:model-value="onToggleAll" />
 		</th>
 
-		<!-- Columns display -->
-
-		<!-- Link to file -->
+		<!-- When files are selected, replace column headers with batch actions
+		     so Tab order stays in the document flow (select-all → actions → rows). -->
 		<th
-			class="files-list__column files-list__row-name files-list__column--sortable"
-			:aria-sort="ariaSortForMode('basename')">
-			<!-- Icon or preview -->
-			<span class="files-list__row-icon" />
-
-			<!-- Name -->
-			<FilesListTableHeaderButton :name="t('files', 'Name')" mode="basename" />
-		</th>
-
-		<!-- Actions -->
-		<th class="files-list__row-actions">
-			<span class="hidden-visually">
-				{{ t('files', 'Actions') }}
+			v-if="!isNoneSelected"
+			class="files-list__row-actions-batch-cell">
+			<span class="files-list__selected">
+				{{ n('files', '{count} selected', '{count} selected', selectedNodes.length, { count: selectedNodes.length }) }}
 			</span>
+			<FilesListTableHeaderActions
+				:current-view="currentView"
+				:selected-nodes="selectedNodes" />
 		</th>
 
-		<!-- Mime -->
-		<th
-			v-if="isMimeAvailable"
-			class="files-list__column files-list__row-mime"
-			:class="{ 'files-list__column--sortable': isMimeAvailable }"
-			:aria-sort="ariaSortForMode('mime')">
-			<FilesListTableHeaderButton :name="t('files', 'File type')" mode="mime" />
-		</th>
+		<template v-else>
+			<!-- Link to file -->
+			<th
+				class="files-list__column files-list__row-name files-list__column--sortable"
+				:aria-sort="ariaSortForMode('basename')">
+				<!-- Icon or preview -->
+				<span class="files-list__row-icon" />
 
-		<!-- Size -->
-		<th
-			v-if="isSizeAvailable"
-			class="files-list__column files-list__row-size"
-			:class="{ 'files-list__column--sortable': isSizeAvailable }"
-			:aria-sort="ariaSortForMode('size')">
-			<FilesListTableHeaderButton :name="t('files', 'Size')" mode="size" />
-		</th>
+				<!-- Name -->
+				<FilesListTableHeaderButton :name="t('files', 'Name')" mode="basename" />
+			</th>
 
-		<!-- Mtime -->
-		<th
-			v-if="isMtimeAvailable"
-			class="files-list__column files-list__row-mtime"
-			:class="{ 'files-list__column--sortable': isMtimeAvailable }"
-			:aria-sort="ariaSortForMode('mtime')">
-			<FilesListTableHeaderButton :name="t('files', 'Modified')" mode="mtime" />
-		</th>
+			<!-- Actions -->
+			<th class="files-list__row-actions">
+				<span class="hidden-visually">
+					{{ t('files', 'Actions') }}
+				</span>
+			</th>
 
-		<!-- Custom views columns -->
-		<th
-			v-for="column in columns"
-			:key="column.id"
-			:class="classForColumn(column)"
-			:aria-sort="ariaSortForMode(column.id)">
-			<FilesListTableHeaderButton v-if="!!column.sort" :name="column.title" :mode="column.id" />
-			<span v-else>
-				{{ column.title }}
-			</span>
-		</th>
+			<!-- Mime -->
+			<th
+				v-if="isMimeAvailable"
+				class="files-list__column files-list__row-mime"
+				:class="{ 'files-list__column--sortable': isMimeAvailable }"
+				:aria-sort="ariaSortForMode('mime')">
+				<FilesListTableHeaderButton :name="t('files', 'File type')" mode="mime" />
+			</th>
+
+			<!-- Size -->
+			<th
+				v-if="isSizeAvailable"
+				class="files-list__column files-list__row-size"
+				:class="{ 'files-list__column--sortable': isSizeAvailable }"
+				:aria-sort="ariaSortForMode('size')">
+				<FilesListTableHeaderButton :name="t('files', 'Size')" mode="size" />
+			</th>
+
+			<!-- Mtime -->
+			<th
+				v-if="isMtimeAvailable"
+				class="files-list__column files-list__row-mtime"
+				:class="{ 'files-list__column--sortable': isMtimeAvailable }"
+				:aria-sort="ariaSortForMode('mtime')">
+				<FilesListTableHeaderButton :name="t('files', 'Modified')" mode="mtime" />
+			</th>
+
+			<!-- Custom views columns -->
+			<th
+				v-for="column in columns"
+				:key="column.id"
+				:class="classForColumn(column)"
+				:aria-sort="ariaSortForMode(column.id)">
+				<FilesListTableHeaderButton v-if="!!column.sort" :name="column.title" :mode="column.id" />
+				<span v-else>
+					{{ column.title }}
+				</span>
+			</th>
+		</template>
 	</tr>
 </template>
 
 <script lang="ts">
-import type { Node } from '@nextcloud/files'
+import type { Node, View } from '@nextcloud/files'
 import type { PropType } from 'vue'
 import type { FileSource } from '../types.ts'
 
-import { t } from '@nextcloud/l10n'
+import { n, t } from '@nextcloud/l10n'
 import { useHotKey } from '@nextcloud/vue/composables/useHotKey'
 import { defineComponent } from 'vue'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
-import { FILE_LIST_HEAD_FIRST_BATCH_ACTION_ID } from './FilesListTableHeaderActions.vue'
+import FilesListTableHeaderActions from './FilesListTableHeaderActions.vue'
 import FilesListTableHeaderButton from './FilesListTableHeaderButton.vue'
 import { useFileListWidth } from '../composables/useFileListWidth.ts'
 import { useRouteParameters } from '../composables/useRouteParameters.ts'
@@ -94,12 +106,11 @@ import { useFilesStore } from '../store/files.ts'
 import { useSelectionStore } from '../store/selection.ts'
 import { logger } from '../utils/logger.ts'
 
-export const FILES_LIST_HEADER_SELECT_ALL_CHECKBOX_ID = 'files-list-header-select-all-checkbox'
-
 export default defineComponent({
 	name: 'FilesListTableHeader',
 
 	components: {
+		FilesListTableHeaderActions,
 		FilesListTableHeaderButton,
 		NcCheckboxRadioSwitch,
 	},
@@ -109,6 +120,11 @@ export default defineComponent({
 	],
 
 	props: {
+		currentView: {
+			type: Object as PropType<View>,
+			required: true,
+		},
+
 		isMimeAvailable: {
 			type: Boolean,
 			default: false,
@@ -145,8 +161,6 @@ export default defineComponent({
 
 			directory,
 			isNarrow,
-
-			FILES_LIST_HEADER_SELECT_ALL_CHECKBOX_ID,
 		}
 	},
 
@@ -206,11 +220,6 @@ export default defineComponent({
 		})
 	},
 
-	mounted() {
-		const selectAllCheckbox = document.getElementById(FILES_LIST_HEADER_SELECT_ALL_CHECKBOX_ID)
-		selectAllCheckbox?.addEventListener('keydown', this.onSelectAllCheckboxFocusOut)
-	},
-
 	methods: {
 		ariaSortForMode(mode: string): 'ascending' | 'descending' | undefined {
 			if (this.sortingMode === mode) {
@@ -246,18 +255,7 @@ export default defineComponent({
 			this.selectionStore.reset()
 		},
 
-		onSelectAllCheckboxFocusOut(event: KeyboardEvent) {
-			// If the user tabbed further and we have a batch action to tab to
-			const firstBatchActionButton = document.getElementById(FILE_LIST_HEAD_FIRST_BATCH_ACTION_ID)
-			if (event.code === 'Tab' && !event.shiftKey && !event.metaKey && firstBatchActionButton) {
-				event.preventDefault()
-				event.stopPropagation()
-
-				firstBatchActionButton.focus()
-				logger.debug('Focusing first batch action button')
-			}
-		},
-
+		n,
 		t,
 	},
 })
@@ -274,4 +272,11 @@ export default defineComponent({
 	}
 }
 
+.files-list__selected {
+	padding-inline-end: 12px;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+	flex-shrink: 0;
+	color: var(--color-main-text);
+}
 </style>
